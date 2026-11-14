@@ -10,7 +10,17 @@ Insan rewrites stiff or AI-sounding text so it reads like a person wrote it, and
 
 ---
 
-## Run it locally
+## Install (easiest)
+
+You need [Node.js](https://nodejs.org) 20.9 or newer. On Windows the installer offers to install it for you with `winget`.
+
+**Windows:** unzip, then double-click **`install-windows.cmd`**. It installs into `%LOCALAPPDATA%\Insan`, builds the app, and adds an **Insan** icon to the Desktop and the Start Menu (with *Stop Insan* and *Uninstall Insan* next to it). No admin rights needed.
+
+**macOS / Linux:** unzip, then run `bash install-mac-linux.sh`. It installs into `~/.local/share/insan` and adds an `insan` command (`insan stop` stops it), plus a menu entry on Linux or `~/Applications/Insan.command` on macOS.
+
+The first install downloads the dependencies once (a few minutes). After that the icon starts a small server on this computer only (http://localhost:3210) and opens it in your browser. From there you can also install it as an app from the browser's address bar. Uninstalling doesn't touch what the browser stored: use **Panic wipe** in Settings first if you want your key and history gone too.
+
+## Run it locally (developers)
 
 ```bash
 npm install
