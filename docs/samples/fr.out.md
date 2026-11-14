@@ -1,0 +1,5 @@
+L'intelligence artificielle joue aujourd'hui un rôle central dans la transformation du système éducatif, bien que cette évolution ne se limite pas à l'apport de nouveaux outils. Elle touche également aux modes d'apprentissage, de collaboration et de développement personnel des élèves. Un rapport publié en 2023 indique d'ailleurs que 45 % des enseignants font déjà usage d'au moins un dispositif lié à l'IA dans leurs cours.
+
+L'un des avantages majeurs réside dans la capacité de ces systèmes à adapter les parcours pédagogiques, à gérer des tâches administratives répétitives et à soutenir plus efficacement l'inclusion. Cependant, il n'y a pas lieu d'ignorer les défis soulevés par leur déploiement, notamment en matière de sécurité des données, de risques de biais algorithmiques ou de dépendance excessive aux technologies numériques.
+
+En somme, l'intelligence artificielle constitue un élément déterminant pour la suite du secteur éducatif. Une mise en œuvre rigoureuse permettrait aux établissements d'en tirer le meilleur parti sans compromettre les fondements de leur activité.
