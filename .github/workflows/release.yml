@@ -1,0 +1,136 @@
+name: Release
+
+# Runs when a commit that changes "version" in package.json lands on main (from `npm run release`):
+# if no vX.Y.Z tag exists yet, it creates the GitHub release and tag, then attaches
+#   - Insan-X.Y.Z-android.apk / .aab  (signed when the ANDROID_* secrets are set, otherwise a debug APK)
+#   - Insan-X.Y.Z-pc.zip              (unzip, then double-click install-windows.cmd, or run install-mac-linux.sh)
+# Pushing a vX.Y.Z tag by hand or running it from the Actions tab works too.
+
+on:
+  push:
+    branches: [main]
+    paths: ["package.json"]
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  # Release only when the version in package.json has no tag yet; creates the release and the tag.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      version: ${{ steps.version.outputs.version }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" > /dev/null 2>&1; then
+            if [ "${{ github.ref_type }}" = "tag" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "release=true" >> "$GITHUB_OUTPUT"   # rebuild and replace the files
+            else
+              echo "v$version is already released, nothing to do"
+              echo "release=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+          echo "Releasing v$version"
+          gh release create "v$version" --target "$GITHUB_SHA" --title "Insan v$version" --generate-notes
+          echo "release=true" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci --silent
+
+      # android/app/build.gradle signs only when android/keystore.properties exists, written here from secrets.
+      - name: Signing config
+        id: sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set: attaching a debug APK instead of a signed release"
+            echo "signed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=${{ vars.ANDROID_KEY_ALIAS || 'insan' }}"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/keystore.properties
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Static export + cap sync
+        run: node scripts/build-native.mjs
+
+      - name: Build
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          if [ "${{ steps.sign.outputs.signed }}" = "true" ]; then
+            ./gradlew -q assembleRelease bundleRelease
+          else
+            ./gradlew -q assembleDebug
+          fi
+
+      - name: Attach to the release
+        run: |
+          if [ "${{ steps.sign.outputs.signed }}" = "true" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "Insan-$VERSION-android.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "Insan-$VERSION-android.aab"
+            gh release upload "v$VERSION" "Insan-$VERSION-android.apk" "Insan-$VERSION-android.aab" --clobber
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk "Insan-$VERSION-android.apk"
+            gh release upload "v$VERSION" "Insan-$VERSION-android.apk" --clobber
+          fi
+
+  # The computer version is the source plus the one-click installers (they build it locally).
+  pc:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check
+        run: |
+          npm ci --silent
+          npm run -s check
+          npm run -s build > build.log 2>&1 || { tail -40 build.log; exit 1; }
+      - name: Attach to the release
+        run: |
+          git archive --format=zip --prefix=Insan/ -o "Insan-$VERSION-pc.zip" HEAD -- . ':!android' ':!ios' ':!docs/superpowers'
+          gh release upload "v$VERSION" "Insan-$VERSION-pc.zip" --clobber

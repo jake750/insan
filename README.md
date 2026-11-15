@@ -43,6 +43,8 @@ Other scripts:
 | `npm run android:dev` | Android app with live reload from your computer |
 | `npm run android:build` | Signed release APK + AAB |
 | `npm run ios:open` | Static export, sync, open the Xcode project |
+| `npm run check` | Typecheck + tests, quiet (prints only failures) |
+| `npm run release [patch\|minor\|major]` | Bump every version file, commit, push to `main`; CI builds and publishes the release |
 | `node scripts/contrast-check.mjs` | WCAG AA check of every text/background token pair, light and dark (`--hex` prints the sRGB values) |
 
 ## Add a model key
@@ -389,3 +391,18 @@ Honest note: the 4B model left a grammar slip ("شركات الصغيرة" shoul
 - In a short Casual-mode test, "the budget stayed under 12,000 euros" became "held firm at 12,000 euros". The number was kept, so the local check passed, and the 4B verifier missed the change of meaning. The meaning check reduces drift; it does not guarantee zero drift. Read the output before you use it.
 - The naturalness report measures the text, not "detectability". Lower stock-phrase counts and more varied rhythm make writing read better; they are not a promise about any AI detector.
 
+## Releases
+
+`npm run release` (or `npm run release minor`) bumps the version in `package.json`, `package-lock.json`, Android (`versionName`, `versionCode`) and iOS, commits and pushes to `main`. The *Release* workflow then creates the `vX.Y.Z` GitHub release with:
+
+- `Insan-X.Y.Z-android.apk` (and `.aab` for Google Play): install the APK on the phone directly.
+- `Insan-X.Y.Z-pc.zip`: unzip, then double-click `install-windows.cmd` (or run `install-mac-linux.sh`).
+
+**Signing in CI (once).** Without these secrets the workflow attaches a debug APK. Create the keystore first (*Android app → Signing* above), then run in PowerShell from the project folder (values are read from your files, nothing is typed by hand):
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("android\insan-release.jks")) | gh secret set ANDROID_KEYSTORE_BASE64
+$p = @{}; Get-Content "android\keystore.properties" | ForEach-Object { if ($_ -match '^\s*(\w+)\s*=\s*(.*)$') { $p[$matches[1]] = $matches[2].Trim() } }; gh secret set ANDROID_KEYSTORE_PASSWORD --body $p.storePassword; gh secret set ANDROID_KEY_PASSWORD --body $p.keyPassword; "alias: " + $p.keyAlias
+```
+
+If the alias is not `insan`: `gh variable set ANDROID_KEY_ALIAS --body <alias>`. Every APK must be signed with the same key, or Android refuses to update over it.

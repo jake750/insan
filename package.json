@@ -13,7 +13,9 @@
     "native:build": "node scripts/build-native.mjs",
     "android:dev": "node scripts/android.mjs dev",
     "android:build": "node scripts/android.mjs build",
-    "ios:open": "node scripts/build-native.mjs && npx cap open ios"
+    "ios:open": "node scripts/build-native.mjs && npx cap open ios",
+    "check": "tsc --noEmit && tsx --test --test-reporter=dot tests/*.test.ts",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

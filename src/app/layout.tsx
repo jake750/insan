@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "Insan — humanize your writing",
   description: "Rewrite stiff or AI-sounding text into natural writing, with the meaning intact. Private by design.",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg", apple: "/icons/180.png" },
+  icons: { icon: "/icon.svg?v=violet", apple: "/icons/180.png?v=violet" },
   appleWebApp: {
     capable: true,
     title: "Insan",
