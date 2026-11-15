@@ -1,16 +1,30 @@
 {
+  "id": "/",
   "name": "Insan — humanize your writing",
   "short_name": "Insan",
-  "description": "Rewrite AI-sounding text into natural writing, privately.",
-  "start_url": "/",
+  "description": "Rewrite AI-sounding text into natural writing and check how AI-like it reads. Private by design.",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#e9ede8",
-  "theme_color": "#0d5c50",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#f2f2f8",
+  "theme_color": "#8047e1",
+  "categories": ["productivity", "education", "utilities"],
+  "dir": "auto",
   "icons": [
-    { "src": "/icons/192", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/512", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/maskable", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
-  ]
+  ],
+  "shortcuts": [
+    { "name": "New rewrite", "short_name": "Rewrite", "url": "/?action=new", "icons": [{ "src": "/icons/96.png", "sizes": "96x96" }] },
+    { "name": "Check AI %", "short_name": "Check AI", "url": "/?action=check", "icons": [{ "src": "/icons/96.png", "sizes": "96x96" }] }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  }
 }

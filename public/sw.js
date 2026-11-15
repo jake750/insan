@@ -1,7 +1,7 @@
 // Insan service worker: offline app shell. Caches only this site's own static files.
 // Never caches API calls, the proxy, or anything cross-origin (your text never touches the cache).
-const CACHE = "insan-v1";
-const SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/icons/192", "/icons/512"];
+const CACHE = "insan-v3";
+const SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/icons/192.png", "/icons/512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -14,6 +14,21 @@ self.addEventListener("activate", (e) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
+});
+
+// The page sends the static files it loaded before this worker took control, so the very first
+// visit is already enough to work offline (same-origin /_next/static files only).
+self.addEventListener("message", (e) => {
+  const urls = (e.data && e.data.warm) || [];
+  const ok = urls.filter((u) => {
+    try {
+      const x = new URL(u);
+      return x.origin === self.location.origin && x.pathname.startsWith("/_next/static/");
+    } catch {
+      return false;
+    }
+  });
+  e.waitUntil(caches.open(CACHE).then((c) => Promise.all(ok.map((u) => c.match(u).then((hit) => hit || c.add(u).catch(() => {}))))));
 });
 
 self.addEventListener("fetch", (e) => {

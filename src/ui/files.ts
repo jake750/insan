@@ -122,13 +122,14 @@ async function scrubDocx(blob: Blob): Promise<Blob> {
   }
 }
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 /**
  * PDF through the browser's own print engine: the only way to get correct Arabic shaping and
  * RTL without shipping a font-shaping engine. Title is neutral, no app name, no URL in headers.
  */
-export function exportPdf(text: string) {
+/** `extraHtml` (already escaped) is appended after the text, e.g. the AI-score report. */
+export function exportPdf(text: string, extraHtml = "") {
   const html = text
     .split(/\n\s*\n/)
     .map((b) => {
@@ -147,7 +148,10 @@ export function exportPdf(text: string) {
     @page { margin: 22mm 20mm; }
     body { font-family: "Literata Variable", "Noto Naskh Arabic", Georgia, serif; font-size: 12pt; line-height: 1.6; color: #111; }
     p { margin: 0 0 10pt; } h1,h2,h3 { font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; margin: 14pt 0 6pt; }
-  </style></head><body>${html}</body></html>`);
+    .report { break-before: page; font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; font-size: 10.5pt; }
+    .report table { border-collapse: collapse; width: 100%; } .report td, .report th { border-bottom: 1px solid #ccc; padding: 4pt 6pt; text-align: start; }
+    .report .note { color: #444; font-size: 9.5pt; }
+  </style></head><body>${html}${extraHtml}</body></html>`);
   doc.close();
   // copy the self-hosted @font-face rules so the print uses the same fonts
   for (const sheet of Array.from(document.styleSheets)) {

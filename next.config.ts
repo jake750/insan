@@ -15,7 +15,15 @@ const csp = [
   "form-action 'none'",
 ].join("; ");
 
-const config: NextConfig = {
+// CAP=1 builds a static export into .next-native/ for the Android/iOS app (scripts/build-native.mjs).
+// The app shell is served from the device, so there are no server headers or API routes there.
+const native = process.env.CAP === "1";
+
+const config: NextConfig = native
+  ? { output: "export", distDir: ".next-native", images: { unoptimized: true }, poweredByHeader: false }
+  : {
+  // route.web.ts files (the stateless proxy) exist only in the web build; the native export skips them
+  pageExtensions: ["tsx", "ts", "web.ts"],
   poweredByHeader: false,
   async headers() {
     return [

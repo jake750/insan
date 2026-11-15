@@ -36,8 +36,14 @@ Other scripts:
 | Command | What it does |
 | --- | --- |
 | `npm run build && npm start` | Production build and server |
-| `npm test` | Engine and analysis unit tests (`tests/engine.test.ts`) |
+| `npm test` | Engine, analysis and AI-detection unit tests (`tests/*.test.ts`) |
 | `npm run typecheck` | TypeScript check |
+| `npm run dev:phone` | Dev server reachable from your phone on the same Wi-Fi; prints the address and a QR code |
+| `npm run native:build` | Static export for the native app (`.next-native/`) + `cap sync` |
+| `npm run android:dev` | Android app with live reload from your computer |
+| `npm run android:build` | Signed release APK + AAB |
+| `npm run ios:open` | Static export, sync, open the Xcode project |
+| `node scripts/contrast-check.mjs` | WCAG AA check of every text/background token pair, light and dark (`--hex` prints the sRGB values) |
 
 ## Add a model key
 
@@ -135,7 +141,7 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 - Word and character counts, reading time, length change in %.
 - Drag-and-drop import of .txt, .md, .docx and .pdf. Export as copy, .txt, .md, .docx (author, app and date metadata removed) or PDF (through the browser's print engine, which gives correct Arabic shaping and RTL).
 - Optional local history in IndexedDB, with search, delete and *Delete all history*.
-- Command palette (`Ctrl/⌘ K`), dark/light/system theme, interface in EN/FR/AR, responsive down to phones (Original/Rewrite tabs), installable PWA.
+- Command palette (`Ctrl/⌘ K`), dark/light/system theme, interface in EN/FR/AR, phone layout (see *On your phone*), installable PWA.
 
 **Naturalness report** (local, shown before and after)
 - Sentence rhythm bars and length variety (coefficient of variation, also called "burstiness").
@@ -145,7 +151,53 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 
 **Every state is designed:** empty input with one-click samples, no model connected, loading/streaming with stage steps (Reading → Rewriting part n of m → Checking meaning → Fixing drift), stopped (partial output kept), auth error, rate limit with a countdown and Retry, network/CORS errors with a shortcut to Settings, refusal, long and very long text notices.
 
-### Keyboard
+## AI-detection score
+
+Insan shows how AI-like a text reads, for the input and for the rewrite, as a percentage in three bands: **0–30 low**, **31–60 mixed**, **61–100 high**. It never claims certainty: a one-line disclaimer is always visible, and texts under 50 words are marked *unreliable*.
+
+**Where you see it.** A gauge card under the editor (desktop) or a compact pill above the editor (phone) that opens the full report. With both texts scored it shows *Input 86% → Output 32%* with the change. Sentences are shaded by score (stronger shade = more AI-like); hover or long-press a sentence to see its score and the reason. The report lists every source and signal with a plain-language meaning and a tip, and has a threshold slider, the list of flagged sentences, **Re-humanize flagged sentences** (rewrites only sentences above the threshold, skips locked ones, then re-scores) and **Export report** (PDF with the text). *Auto-check after every rewrite* is in Settings → AI score. `Ctrl/⌘ ⇧ A` runs a check.
+
+**Sources.** The score is the weighted average of the sources that answered. Failed sources are shown, never hidden.
+
+| Source | Default | Weight | Where the text goes |
+| --- | --- | --- | --- |
+| Local statistics | always on | 1 | nowhere: runs in the page, works offline |
+| LLM judge (your model key) | off | 1.5 | your model provider |
+| GPTZero | off | 3 | api.gptzero.me |
+| Sapling | off | 2 | api.sapling.ai |
+| Originality.ai | off | 3 | api.originality.ai |
+| Copyleaks | off | 3 | id.copyleaks.com, api.copyleaks.com |
+
+External detectors need your own key (Settings → AI score; *Get a key* links to each site). Requests go straight from your device to the detector (through the stateless proxy if you enabled it, or through native HTTP in the Android/iOS app). Insan stores nothing.
+
+**The local detector** (`src/detection/`) measures eight signals. Each is mapped to 0–1 between a "human" and an "AI" anchor, then weighted. Weights, anchors and word lists live in one documented file, [`src/detection/config.ts`](src/detection/config.ts):
+
+| Signal | Weight | What it measures |
+| --- | --- | --- |
+| Clichés | 0.24 | stock phrases per 100 words (EN/FR/AR lists, editable in `src/analysis/metrics.ts`) |
+| Burstiness | 0.20 | how much sentence length varies |
+| Transitions | 0.16 | share of sentences opening with *Moreover*, *En outre*, *علاوة على ذلك*… |
+| Hedging | 0.10 | *it is important to note*, *il convient de*, *تجدر الإشارة*… |
+| Punctuation | 0.08 | variety of expressive punctuation (dashes, colons, questions, ؟ ؛ « ») |
+| Openers | 0.06 | sentences starting with the same word |
+| Paragraphs | 0.06 | how uniform paragraph lengths are |
+| Word variety | 0.04 | moving-average type/token ratio |
+
+Signals without enough material (for example paragraph uniformity with one paragraph) are dropped and the rest re-weighted. Arabic is folded (diacritics, tatweel, alef/ya forms) before matching, and sentence offsets stay RTL-safe. The LLM judge returns a score and a one-line reason per sentence in strict JSON (`src/detection/judge.ts`).
+
+### Scores on test texts (local detector)
+
+Raw AI = the built-in sample paragraph (typical ChatGPT style). Humanized = the same paragraph after Insan (outputs in `docs/samples/`). Human = public-domain prose (`tests/fixtures/`, sources in `SOURCES.md`).
+
+| Language | Raw AI | Humanized | Human |
+| --- | --- | --- | --- |
+| English | 86 (high) | 32 (mixed) | 18 (low) |
+| Français | 92 (high) | 45 (mixed) | 10 (low) |
+| العربية | 77 (high) | 42 (mixed) | 0 (low) |
+
+`npm test` pins the AI ≥ 61 and human ≤ 30 bands for all three languages. The LLM judge and external detectors were not run for this table (they need paid keys). The humanized outputs came from a small 4B local model; a stronger model should score lower.
+
+## Keyboard shortcuts
 
 | Action | Keys |
 | --- | --- |
@@ -153,6 +205,7 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 | Command palette | `Ctrl/⌘ K` |
 | Diff view | `Ctrl/⌘ ⇧ D` |
 | Copy output | `Ctrl/⌘ ⇧ C` |
+| Check AI score | `Ctrl/⌘ ⇧ A` |
 | Undo / redo (output) | `Ctrl/⌘ Z`, `Ctrl/⌘ ⇧ Z` |
 | Settings | `Ctrl/⌘ ,` |
 | Mode 1–9 | `Alt 1…9` |
@@ -166,6 +219,78 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 - **Proxy mode:** `POST /api/proxy/*` forwards only the needed headers to an allowlisted HTTPS host and streams the reply back. It stores nothing, logs nothing and sets no cookies.
 - The service worker caches only the app's own static files, never API traffic or your text.
 - **Panic wipe** (Settings) erases the key, settings, presets, history (IndexedDB) and caches.
+- AI detectors are off by default. One you turn on receives the text only when you press *Check AI %* (or after a rewrite if auto-check is on).
+- In the Android/iOS app, keys are kept in the Android Keystore / iOS Keychain (`@aparajita/capacitor-secure-storage`), not in WebView storage.
+
+## Theme
+
+Violet, with no green anywhere. Every colour is an OKLCH token in `src/app/globals.css`: `--brand` is `oklch(0.55 0.22 295)` (about `#8047e1`), brightened to `oklch(0.72 0.16 295)` in dark mode; the magenta accent `oklch(0.6 0.22 340)` is used sparingly; neutrals sit at hue 290. The score scale runs indigo → amber → rose, and success is violet with a check mark. `node scripts/contrast-check.mjs` checks every text pair against WCAG AA in both themes. Icons, splash screens, `theme-color` and the Android resources use the same values.
+
+## On your phone
+
+### Try it over Wi-Fi (no install)
+
+```bash
+npm run dev:phone
+```
+
+It starts the dev server on all network interfaces (`next dev -H 0.0.0.0`), prints your computer's local address (for example `http://192.168.1.20:3210`) and a QR code. Scan it with the phone camera. Phone and computer must be on the same Wi-Fi. On Windows, allow Node.js through the firewall for *private* networks when asked. To find the address by hand: `ipconfig` (Windows) or `ipconfig getifaddr en0` (macOS).
+
+Below 768 px the app switches to a phone layout: Original / Rewrite / Diff tabs; a bottom action bar (Humanize, Check AI %, Copy, Share) that stays above the keyboard; options in a bottom sheet you can drag; the score as a pill that opens the report; and long-press on a sentence for alternatives, re-humanize or lock.
+
+### Install as an app (PWA)
+
+Service workers need HTTPS (or localhost), so install from your deployed site, not from the Wi-Fi address.
+
+- **Android (Chrome):** an *Install* button appears in the header (or menu → *Install app*). Long-press the icon for *New rewrite* and *Check AI %*. Once installed, Insan appears in the Android share sheet: share text from any app and it lands in the input box.
+- **iPhone (Safari):** Share → *Add to Home Screen*. The app shows these steps when it detects iOS. Splash screens are generated for current iPhone sizes.
+- Offline, the app shell and the local detector keep working, and a banner says you are offline.
+
+### Android app (Capacitor)
+
+Requirements: Node 20.9+, **JDK 21 or newer** (Android Studio's bundled JDK works) and the Android SDK (install Android Studio once). If `JAVA_HOME` / `ANDROID_HOME` are not set, the scripts look for a JDK in `~/.jdks` and for the SDK in its default folder.
+
+```bash
+npm run android:dev
+```
+
+Live reload: the phone or emulator loads the dev server from your computer (same Wi-Fi).
+
+```bash
+npm run android:build
+```
+
+Signed release builds: `android/app/build/outputs/apk/release/app-release.apk` (install directly) and `android/app/build/outputs/bundle/release/app-release.aab` (Google Play). For a quick unsigned test build, run `npm run native:build`, then `./gradlew assembleDebug` inside `android/`, and install `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+The app is the same static UI (`CAP=1 next build` writes `.next-native/`, without the web-only proxy route). Native extras: model and detector calls through native HTTP (no CORS problems), keys in the Keystore, *Share → Insan* from any app (`ACTION_SEND text/plain`), native clipboard, haptics, violet status/navigation bars, adaptive icon and splash.
+
+**Signing (once).** Keep the keystore file and its passwords safe: without them you can't publish updates to the same Play listing.
+
+1. Create a keystore (`keytool` ships with the JDK). It asks for a password and your name or organisation:
+   ```bash
+   keytool -genkeypair -v -keystore android/insan-release.jks -alias insan -keyalg RSA -keysize 2048 -validity 10000
+   ```
+2. Create `android/keystore.properties` (git-ignored, like the `.jks` file):
+   ```properties
+   storeFile=insan-release.jks
+   storePassword=your-store-password
+   keyAlias=insan
+   keyPassword=your-key-password
+   ```
+3. Run `npm run android:build`. Without the properties file the build still runs, but the release APK is unsigned.
+
+To install on your phone, either enable *Developer options → USB debugging*, connect it and run `adb install -r android/app/build/outputs/apk/release/app-release.apk`, or copy the APK to the phone and open it (allow *Install unknown apps* for your file manager).
+
+### iOS app
+
+The iOS project is in `ios/` (`npx cap add ios` has been run). On a Mac with Xcode 16+:
+
+```bash
+npm install
+npm run ios:open
+```
+
+In Xcode, choose your team under *Signing & Capabilities*, pick a device and press Run. Keys go to the iOS Keychain. Receiving shared text on iOS needs a Share Extension target, which isn't included yet; sharing out works.
 
 ---
 

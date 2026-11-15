@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { makeChat } from "../engine/providers";
 import { ANTHROPIC_MODELS, EngineError } from "../engine/types";
+import { ADAPTERS } from "../detection/external";
+import { DSTRINGS } from "./detect/strings";
 import { Dialog } from "./Dialog";
 import { fmt, type Strings, type UILang } from "./i18n";
 import { resetHistoryHandle } from "./history";
@@ -17,6 +19,7 @@ const ENDPOINTS = [
 
 export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; onClose: () => void; errText: (e: unknown) => string; onWiped: () => void }) {
   const s = useStore();
+  const d = DSTRINGS[s.uiLang];
   const [show, setShow] = useState(false);
   const [test, setTest] = useState<{ state: "idle" | "busy" | "ok" | "err"; msg?: string }>({ state: "idle" });
   const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
@@ -188,6 +191,54 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
               <IconAlert size={16} /> {test.msg}
             </span>
           )}
+        </div>
+
+        <div className="section-title">{d.aiScore}</div>
+        <label className="check">
+          <input type="checkbox" checked={s.detect.autoCheck} onChange={(e) => s.setDetect({ autoCheck: e.target.checked })} />
+          <span>
+            {d.autoCheck}
+            <div className="help">{d.autoCheckHelp}</div>
+          </span>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={s.detect.judge} onChange={(e) => s.setDetect({ judge: e.target.checked })} />
+          <span>
+            {d.useJudge}
+            <div className="help">{d.useJudgeHelp}</div>
+          </span>
+        </label>
+        <div>
+          <div className="field-label">{d.detectors}</div>
+          <p className="help" style={{ marginTop: 0 }}>{d.detectorsHelp}</p>
+          <div className="det-list">
+            {ADAPTERS.map((a) => {
+              const on = !!s.detect.enabled[a.id];
+              return (
+                <div className="det-item" key={a.id} data-on={on || undefined}>
+                  <label className="check">
+                    <input type="checkbox" checked={on} onChange={(e) => s.setDetect({ enabled: { ...s.detect.enabled, [a.id]: e.target.checked } })} />
+                    <span>{a.label}</span>
+                    <a className="help" href={a.site} target="_blank" rel="noopener noreferrer" style={{ marginInlineStart: "auto", marginTop: 0 }}>{d.getKey}</a>
+                  </label>
+                  {on &&
+                    a.fields.map((f) => (
+                      <input
+                        key={f}
+                        className="input"
+                        type={f === "email" ? "email" : "password"}
+                        autoComplete="off"
+                        spellCheck={false}
+                        placeholder={f === "email" ? d.email : d.apiKey}
+                        aria-label={`${a.label} ${f === "email" ? d.email : d.apiKey}`}
+                        value={s.keys.det[a.id]?.[f] ?? ""}
+                        onChange={(e) => s.setDetKey(a.id, f, e.target.value)}
+                      />
+                    ))}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="section-title">{t.interface}</div>

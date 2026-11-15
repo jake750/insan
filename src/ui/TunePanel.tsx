@@ -7,7 +7,7 @@ import { useStore } from "./store";
 
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
 
-export function TunePanel({ t, ui, onClose }: { t: Strings; ui: UILang; onClose: () => void }) {
+export function TunePanel({ t, ui, onClose, embedded }: { t: Strings; ui: UILang; onClose: () => void; embedded?: boolean }) {
   const { options, setOptions, presets, set } = useStore();
   const [name, setName] = useState("");
   // keep raw text for list fields so typing newlines feels natural
@@ -29,8 +29,8 @@ export function TunePanel({ t, ui, onClose }: { t: Strings; ui: UILang; onClose:
   };
 
   return (
-    <aside className="pane tune" aria-label={t.tune}>
-      <div className="pane-head">
+    <aside className={embedded ? "tune embedded" : "pane tune"} aria-label={t.tune}>
+      <div className="pane-head" hidden={embedded}>
         <div className="pane-title">{t.tune}</div>
         <button className="btn btn-icon" onClick={onClose} aria-label={t.close} title={t.close}>
           <IconX />

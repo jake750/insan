@@ -4,8 +4,33 @@
     {
       "name": "insan",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3210
+    },
+    {
+      "name": "insan-alt",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "node_modules/next/dist/bin/next",
+        "dev",
+        "-p",
+        "3211"
+      ],
+      "port": 3211
+    },
+    {
+      "name": "insan-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "node_modules/next/dist/bin/next",
+        "start",
+        "-p",
+        "3212"
+      ],
+      "port": 3212
     }
   ]
 }

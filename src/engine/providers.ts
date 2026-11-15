@@ -18,6 +18,13 @@ function absolute(url: string): string {
   return new URL(url, window.location.origin).toString().replace(/\/$/, "");
 }
 
+/** True inside the Capacitor app (Android/iOS), where CapacitorHttp bypasses CORS. */
+function nativeHttp(): boolean {
+  if (typeof window === "undefined") return false;
+  const c = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return !!c?.isNativePlatform?.();
+}
+
 /** Remove <think>…</think> blocks some local reasoning models emit inline. */
 export function stripThinking(s: string): string {
   return s.replace(/<think>[\s\S]*?<\/think>\s*/g, "").replace(/^[\s\S]*?<\/think>\s*/, "");
@@ -112,6 +119,26 @@ function openaiChat(cfg: ProviderConfig): Chat {
     if (cfg.noThink) {
       body.reasoning_effort = "none"; // Ollama maps this to think:false
       body.think = false;
+    }
+
+    // Inside the Android/iOS app: native HTTP (no CORS), non-streaming, the reply arrives in one piece.
+    if (nativeHttp() && !isLocal) {
+      const { CapacitorHttp } = await import("@capacitor/core");
+      if (signal?.aborted) throw new EngineError("aborted", "Stopped.");
+      const r = await CapacitorHttp.post({ url: `${base}/chat/completions`, headers, data: { ...body, stream: false }, responseType: "json" }).catch(() => {
+        throw new EngineError("network", "Could not reach the endpoint. Check your connection.");
+      });
+      if (signal?.aborted) throw new EngineError("aborted", "Stopped.");
+      const data = typeof r.data === "string" ? JSON.parse(r.data || "{}") : r.data;
+      if (r.status >= 400) {
+        const msg = data?.error?.message ?? data?.error ?? `HTTP ${r.status}`;
+        if (r.status === 401 || r.status === 403) throw new EngineError("auth", `The endpoint rejected the key: ${msg}`);
+        if (r.status === 429) throw new EngineError("rate_limit", "Rate limit reached.", 30);
+        throw new EngineError(r.status >= 500 ? "overloaded" : "bad_request", String(msg));
+      }
+      const out = stripThinking(String(data?.choices?.[0]?.message?.content ?? ""));
+      onText?.(out);
+      return out;
     }
 
     let res: Response;

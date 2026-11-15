@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Insan mark (the five bars of public/icon.svg), centred inside the 66dp safe zone of the 108dp adaptive canvas -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FCFBFF" android:pathData="M30.90,46.30a3.30,3.30 0,0 1,6.60,0v24.20a3.30,3.30 0,0 1,-6.60,0z" />
+    <path android:fillColor="#FCFBFF" android:pathData="M40.80,63.90a3.30,3.30 0,0 1,6.60,0v6.60a3.30,3.30 0,0 1,-6.60,0z" />
+    <path android:fillColor="#FCFBFF" android:pathData="M50.70,37.50a3.30,3.30 0,0 1,6.60,0v33.00a3.30,3.30 0,0 1,-6.60,0z" />
+    <path android:fillColor="#FCFBFF" android:pathData="M60.60,55.10a3.30,3.30 0,0 1,6.60,0v15.40a3.30,3.30 0,0 1,-6.60,0z" />
+    <path android:fillColor="#FCFBFF" android:pathData="M70.50,44.10a3.30,3.30 0,0 1,6.60,0v26.40a3.30,3.30 0,0 1,-6.60,0z" />
+</vector>

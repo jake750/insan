@@ -9,7 +9,10 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const DEFAULT_HOSTS = "api.anthropic.com,api.openai.com,openrouter.ai,api.groq.com,api.mistral.ai,api.deepseek.com,api.together.xyz";
+// model providers, then the optional AI detectors (GPTZero, Sapling, Originality.ai, Copyleaks)
+const DEFAULT_HOSTS =
+  "api.anthropic.com,api.openai.com,openrouter.ai,api.groq.com,api.mistral.ai,api.deepseek.com,api.together.xyz," +
+  "api.gptzero.me,api.sapling.ai,api.originality.ai,id.copyleaks.com,api.copyleaks.com";
 const ALLOWED = new Set(
   (process.env.INSAN_PROXY_HOSTS ?? DEFAULT_HOSTS)
     .split(",")
@@ -18,7 +21,7 @@ const ALLOWED = new Set(
 );
 
 // Request headers worth forwarding; everything else (cookies, client IP, user agent…) is dropped.
-const PASS = ["content-type", "authorization", "x-api-key", "anthropic-version", "anthropic-beta", "accept"];
+const PASS = ["content-type", "authorization", "x-api-key", "anthropic-version", "anthropic-beta", "accept", "x-oai-api-key"];
 const BACK = ["content-type", "retry-after", "request-id", "x-request-id"];
 
 export async function POST(req: Request, { params }: { params: Promise<{ path: string[] }> }) {

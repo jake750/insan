@@ -1,21 +1,34 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
+import { SPLASH } from "./splash";
 
 export const metadata: Metadata = {
   title: "Insan — humanize your writing",
   description: "Rewrite stiff or AI-sounding text into natural writing, with the meaning intact. Private by design.",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg", apple: "/icons/180" },
+  icons: { icon: "/icon.svg", apple: "/icons/180.png" },
+  appleWebApp: {
+    capable: true,
+    title: "Insan",
+    statusBarStyle: "default",
+    // iPhone splash screens (portrait, device pixels ÷ pixel ratio = CSS size)
+    startupImage: SPLASH.map((s) => {
+      const [w, h] = s.split("x").map(Number);
+      const r = w >= 1242 ? 3 : w === 828 || w === 750 ? 2 : 3;
+      return { url: `/icons/splash-${s}.png`, media: `(device-width: ${w / r}px) and (device-height: ${h / r}px) and (-webkit-device-pixel-ratio: ${r})` };
+    }),
+  },
   referrer: "no-referrer",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover", // lets the layout use the notch / gesture-bar safe areas
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#e9ede8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1412" },
+    { media: "(prefers-color-scheme: light)", color: "#f2f2f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f0e18" },
   ],
 };
 

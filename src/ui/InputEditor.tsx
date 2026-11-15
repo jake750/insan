@@ -8,18 +8,29 @@ interface Props {
   lang: string;
   placeholder: string;
   hits: AiHit[] | null;
+  /** per-sentence AI-likeness heat (null = off) */
+  heat?: { start: number; end: number; score: number }[] | null;
   disabled?: boolean;
   label: string;
 }
 
 /** Textarea with a mirrored backdrop so stock phrases can be underlined in place. */
 export const InputEditor = forwardRef<HTMLTextAreaElement, Props>(function InputEditor(
-  { value, onChange, lang, placeholder, hits, disabled, label },
+  { value, onChange, lang, placeholder, hits, disabled, label, heat },
   ref,
 ) {
   const back = useRef<HTMLDivElement>(null);
   const parts: ReactNode[] = [];
-  if (hits?.length) {
+  if (heat?.length) {
+    let last = 0;
+    heat.forEach((h, i) => {
+      parts.push(value.slice(last, h.start));
+      const band = h.score <= 30 ? "low" : h.score <= 60 ? "mixed" : "high";
+      parts.push(<mark key={i} className="heat" data-heat={band} style={{ ["--heat" as string]: Math.max(0.12, h.score / 100) }}>{value.slice(h.start, h.end)}</mark>);
+      last = h.end;
+    });
+    parts.push(value.slice(last));
+  } else if (hits?.length) {
     let last = 0;
     hits.forEach((h, i) => {
       parts.push(value.slice(last, h.start));
@@ -30,7 +41,7 @@ export const InputEditor = forwardRef<HTMLTextAreaElement, Props>(function Input
   }
   return (
     <div className="editor" data-lang={lang}>
-      {hits?.length ? (
+      {hits?.length || heat?.length ? (
         <div className="backdrop" ref={back} dir="auto" aria-hidden="true">
           {parts}
           {"\n"}

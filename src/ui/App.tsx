@@ -1,13 +1,21 @@
 "use client";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { analyzeText } from "../analysis/metrics";
+import { ADAPTERS, type DetectionResult } from "../detection";
+import { detectLocal } from "../detection/local";
+import { haptic, hideSplash, isNative, nativeCopy, onSharedText, shareText, themeSystemBars } from "../native";
+import { DetectReport, reasonText } from "./detect/DetectReport";
+import { ScoreCard, ScorePill } from "./detect/ScoreCard";
+import { DSTRINGS } from "./detect/strings";
+import { useDetection } from "./detect/useDetection";
+import { Sheet } from "./Sheet";
 import { buildDoc, docText, findSeg, replaceParagraph, updateSeg, type Doc } from "../engine/doc";
 import { alternatives, runPipeline } from "../engine/pipeline";
 import { detectLang, wordCount } from "../engine/text";
 import { EngineError, MODES, type DocBrief, type Mode, type PipelineStage } from "../engine/types";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { Dialog } from "./Dialog";
-import { copyText, exportDocx, exportPdf, exportText, importFile } from "./files";
+import { copyText, esc, exportDocx, exportPdf, exportText, importFile } from "./files";
 import { addHistory, type HistoryItem } from "./history";
 import { HistoryDialog } from "./HistoryDialog";
 import { MODE_HINTS, MODE_LABELS, STRINGS, fmt, type UILang } from "./i18n";
@@ -20,6 +28,11 @@ import {
   IconDownload,
   IconEdit,
   IconHistory,
+  IconInstall,
+  IconLock,
+  IconOffline,
+  IconScan,
+  IconShare,
   IconMoon,
   IconRedo,
   IconRevert,
@@ -59,6 +72,7 @@ export default function App() {
   const store = useStore();
   const { options, setOptions, uiLang, theme, provider, keys, hydrated } = store;
   const t = STRINGS[uiLang];
+  const d = DSTRINGS[uiLang];
 
   const [input, setInput] = useState("");
   const [doc, setDoc] = useState<Doc | null>(null);
@@ -77,13 +91,22 @@ export default function App() {
   const [alts, setAlts] = useState<string[] | "loading" | { error: string } | null>(null);
   const [dialog, setDialog] = useState<"settings" | "history" | "palette" | "shortcuts" | null>(null);
   const [tuneOpen, setTuneOpen] = useState(false);
-  const [tab, setTab] = useState<"input" | "output">("input");
+  const [tab, setTab] = useState<"input" | "output" | "diff">("input");
+  const [showHeat, setShowHeat] = useState(true);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [locked, setLocked] = useState<Set<string>>(new Set());
+  const [rehum, setRehum] = useState<{ n: number; total: number } | null>(null);
+  const [installEvt, setInstallEvt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
+  const [iosGuide, setIosGuide] = useState(false);
+  const [online, setOnline] = useState(true);
+  const [mobile, setMobile] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const busyRef = useRef(false);
   const streamRef = useRef("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -92,8 +115,66 @@ export default function App() {
   /* ---------- boot: settings, theme, language, service worker ---------- */
   useEffect(() => {
     store.hydrate();
-    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) navigator.serviceWorker
+        .register("/sw.js")
+        .then(() => navigator.serviceWorker.ready)
+        .then((reg) => reg.active?.postMessage({ warm: performance.getEntriesByType("resource").map((r) => r.name) }))
+        .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!hydrated) return;
+    hideSplash();
+    // text shared into the app: PWA share target (?text=) or Android "Share → Insan"
+    const q = new URLSearchParams(location.search);
+    const shared = [q.get("title"), q.get("text"), q.get("url")].filter(Boolean).join("\n\n");
+    if (shared) {
+      setInput(shared);
+      setTab("input");
+      toast(DSTRINGS[useStore.getState().uiLang].sharedIn);
+    }
+    if (q.get("action") === "new") setInput("");
+    if (q.get("action") === "check") pendingCheck.current = true;
+    if (q.toString()) history.replaceState(null, "", location.pathname);
+    let off = () => {};
+    onSharedText((txt) => {
+      setInput(txt);
+      setTab("input");
+      toast(DSTRINGS[useStore.getState().uiLang].sharedIn);
+    }).then((f) => (off = f));
+    return () => off();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallEvt(e as Event & { prompt: () => Promise<void> });
+    };
+    const onInstalled = () => setInstallEvt(null);
+    const net = () => setOnline(navigator.onLine);
+    const mq = matchMedia("(max-width: 767px)");
+    const mob = () => setMobile(mq.matches);
+    net();
+    mob();
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener("online", net);
+    window.addEventListener("offline", net);
+    mq.addEventListener("change", mob);
+    // keep the bottom action bar above the on-screen keyboard
+    const vv = window.visualViewport;
+    const kb = () => vv && document.documentElement.style.setProperty("--kb", `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
+    vv?.addEventListener("resize", kb);
+    vv?.addEventListener("scroll", kb);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("online", net);
+      window.removeEventListener("offline", net);
+      mq.removeEventListener("change", mob);
+      vv?.removeEventListener("resize", kb);
+      vv?.removeEventListener("scroll", kb);
+    };
   }, []);
   useEffect(() => {
     const el = document.documentElement;
@@ -136,7 +217,24 @@ export default function App() {
   const before = useMemo(() => (deferredInput.trim() ? analyzeText(deferredInput, detectLang(deferredInput)) : null), [deferredInput]);
   const after = useMemo(() => (outputText.trim() && streaming === null ? analyzeText(outputText, lang) : null), [outputText, streaming, lang]);
   const words = before?.words ?? 0;
-  const busy = run !== null;
+  const det = useDetection(input, outputText, lang, streaming !== null);
+  const pendingCheck = useRef(false);
+  const sourceLabel = useCallback((id: string) => (id === "local" ? d.src_local : id === "llm" ? d.src_llm : ADAPTERS.find((a) => a.id === id)?.label ?? id), [d]);
+  // map scored sentences onto the output's sentence segments
+  const heat = useMemo(() => {
+    if (!showHeat || !doc || !det.outRes) return null;
+    const norm = (x: string) => x.replace(/\s+/g, " ").trim();
+    const byText = new Map(det.outRes.sentences.map((s) => [norm(s.text), s]));
+    const m = new Map<string, { score: number; tip: string }>();
+    for (const seg of doc.flat()) {
+      const hit = byText.get(norm(seg.text));
+      if (hit) m.set(seg.id, { score: hit.score, tip: [fmt(d.sentenceScore, { s: hit.score }), ...hit.reasons.slice(0, 2).map((x) => reasonText(d, x))].join(" · ") });
+    }
+    return m;
+  }, [showHeat, doc, det.outRes, d]);
+  const inHeat = useMemo(() => (showHeat && det.inRes && !busyRef.current ? det.inRes.sentences.map((s) => ({ start: s.start, end: s.end, score: s.score })) : null), [showHeat, det.inRes]);
+  const busy = run !== null || rehum !== null;
+  busyRef.current = busy;
   const remoteNeedsKey = provider.kind === "anthropic" || !/\/\/(localhost|127\.0\.0\.1)/.test(provider.baseUrl);
   const hasModel = !remoteNeedsKey || !!keys[provider.kind].trim();
   const parts = Math.ceil(words / (provider.kind === "anthropic" ? 900 : 450));
@@ -208,6 +306,9 @@ export default function App() {
         },
       });
       commit(buildDoc(input, res.output));
+      setLocked(new Set());
+      haptic("success");
+      if (useStore.getState().detect.autoCheck && det.hasRemote()) det.run({ input, output: res.output });
       const left = res.chunks.flatMap((c) => c.issues.map((i) => i.detail));
       setWarnings(left);
       setVerdict(left.length ? "warn" : res.chunks.some((c) => c.repaired) ? "repaired" : options.verify ? "ok" : null);
@@ -222,7 +323,7 @@ export default function App() {
       setRun(null);
       abortRef.current = null;
     }
-  }, [busy, input, hasModel, options, store, commit, lang]);
+  }, [busy, input, hasModel, options, store, commit, lang, det]);
 
   const stop = useCallback(() => abortRef.current?.abort(), []);
 
@@ -319,6 +420,106 @@ export default function App() {
     commit(next);
   };
 
+  /* ---------- AI score ---------- */
+  const checkAi = useCallback(() => {
+    if (!input.trim() && !outputText.trim()) return;
+    haptic();
+    det.run({ input, output: outputText });
+  }, [det, input, outputText]);
+  useEffect(() => {
+    if (pendingCheck.current && hydrated && input.trim()) {
+      pendingCheck.current = false;
+      checkAi();
+      if (mobile) setReportOpen(true);
+    }
+  }, [hydrated, input, checkAi, mobile]);
+
+  /** Rewrite one sentence: ask for alternatives, keep the one the local detector finds least AI-like. */
+  const rewriteOne = useCallback(
+    async (id: string, cur: Doc): Promise<string | null> => {
+      const flat = cur.flat();
+      const i = flat.findIndex((x) => x.id === id);
+      if (i < 0) return null;
+      const list = await alternatives({
+        target: flat[i].text,
+        before: flat.slice(Math.max(0, i - 4), i).map((x) => x.text).join(" "),
+        after: flat.slice(i + 1, i + 5).map((x) => x.text).join(" "),
+        unit: "sentence",
+        options: { ...options, intensity: Math.max(4, options.intensity) },
+        provider: store.providerConfig(),
+        brief,
+      });
+      if (!list.length) return null;
+      const scored = list.map((a) => ({ a, s: detectLocal(a, lang).sentences.reduce((m, x) => Math.max(m, x.score), 0) }));
+      return scored.sort((x, y) => x.s - y.s)[0].a;
+    },
+    [options, store, brief, lang],
+  );
+
+  const rehumanizeFlagged = useCallback(async () => {
+    if (!doc || busy || !heat) return;
+    const th = useStore.getState().detect.threshold;
+    const ids = doc.flat().filter((x) => (heat.get(x.id)?.score ?? 0) >= th && !locked.has(x.id)).map((x) => x.id);
+    if (!ids.length) return toast(fmt(d.nothingFlagged, { t: th }));
+    if (!hasModel) return setDialog("settings");
+    setReportOpen(false);
+    let cur = doc;
+    let done = 0;
+    try {
+      for (let k = 0; k < ids.length; k++) {
+        setRehum({ n: k + 1, total: ids.length });
+        const alt = await rewriteOne(ids[k], cur);
+        if (alt) {
+          cur = updateSeg(cur, ids[k], { text: alt, status: "edited" });
+          done++;
+        }
+      }
+    } catch (e) {
+      setError(e instanceof EngineError ? e : new EngineError("unknown", e instanceof Error ? e.message : String(e)));
+    } finally {
+      setRehum(null);
+    }
+    if (done) {
+      commit(cur);
+      const out = docText(cur);
+      if (det.hasRemote()) det.run({ input, output: out });
+      haptic("success");
+      toast(fmt(d.rehumanized, { n: done }));
+    }
+  }, [doc, busy, heat, locked, hasModel, rewriteOne, commit, det, input, d, toast]);
+
+  const reportHtml = (r: DetectionResult | null, label: string) => {
+    if (!r) return "";
+    const st = d;
+    const rows = r.sources.map((x) => `<tr><td>${esc(sourceLabel(x.id))}</td><td>${x.score === null ? esc(st.failed) : `${x.score}%`}</td></tr>`).join("");
+    const flagged = r.sentences.filter((x) => x.score >= store.detect.threshold).slice(0, 15).map((x) => `<li>${x.score}% — ${esc(x.text)}</li>`).join("");
+    return `<h3>${esc(label)}: ${r.score}% (${esc(st[`band_${r.band}`])})</h3><table>${rows}</table>${flagged ? `<p><b>${esc(st.flagged)}</b></p><ol>${flagged}</ol>` : ""}`;
+  };
+  const exportReport = () => {
+    const text = outputText || input;
+    if (!text) return toast(t.nothingToExport);
+    const body = `<section class="report" dir="${uiLang === "ar" ? "rtl" : "ltr"}"><h2>${esc(d.reportTitle)}</h2>${reportHtml(det.inRes, d.input)}${outputText ? reportHtml(det.outRes, d.output) : ""}<p class="note">${esc(d.disclaimer)}</p></section>`;
+    toast(t.pdfPrintHint);
+    exportPdf(text, body);
+  };
+  const share = async () => {
+    const text = outputText || input;
+    if (!text) return toast(t.nothingToExport);
+    const r = await shareText(text, t.appName);
+    if (r === "unsupported") {
+      await copyText(text);
+      toast(t.copied);
+    }
+  };
+  const install = async () => {
+    if (installEvt) {
+      await installEvt.prompt();
+      setInstallEvt(null);
+    } else setIosGuide(true);
+  };
+  const isIos = typeof navigator !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator as Navigator & { standalone?: boolean }).standalone;
+  const canInstall = !isNative() && (!!installEvt || isIos);
+
   /* ---------- files ---------- */
   const onFile = async (f: File | undefined) => {
     if (!f) return;
@@ -343,7 +544,8 @@ export default function App() {
   };
   const copyOut = async () => {
     if (!outputText) return toast(t.nothingToExport);
-    await copyText(outputText);
+    if (!(await nativeCopy(outputText))) await copyText(outputText);
+    haptic();
     toast(t.copied);
   };
 
@@ -364,6 +566,9 @@ export default function App() {
     } else if (mod && e.shiftKey && e.key.toLowerCase() === "c" && !inField) {
       e.preventDefault();
       copyOut();
+    } else if (mod && e.shiftKey && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      checkAi();
     } else if (mod && e.key === "/") {
       e.preventDefault();
       setDialog("shortcuts");
@@ -404,6 +609,12 @@ export default function App() {
     { id: "x-md", label: `${t.export}: ${t.exportMd}`, run: () => doExport("md"), disabled: !doc },
     { id: "x-docx", label: `${t.export}: ${t.exportDocx}`, run: () => doExport("docx"), disabled: !doc },
     { id: "x-pdf", label: `${t.export}: ${t.exportPdf}`, run: () => doExport("pdf"), disabled: !doc },
+    { id: "check", label: d.checkAi, hint: `${MOD} ⇧ A`, keywords: "ai detector score gptzero détecteur كاشف", run: checkAi, disabled: !input.trim() && !outputText },
+    { id: "report", label: d.report, run: () => setReportOpen(true), disabled: !det.inRes && !det.outRes },
+    { id: "rehum", label: d.rehumanize, run: rehumanizeFlagged, disabled: !doc || busy },
+    { id: "heat", label: d.heatmap, run: () => setShowHeat((v) => !v) },
+    { id: "share", label: d.share, run: share, disabled: !input && !outputText },
+    ...(canInstall ? [{ id: "install", label: d.install, run: install }] : []),
     { id: "import", label: t.importFile, run: () => fileRef.current?.click() },
     { id: "tune", label: t.tune, run: () => setTuneOpen((o) => !o) },
     { id: "history", label: t.history, run: () => setDialog("history") },
@@ -427,6 +638,9 @@ export default function App() {
     return () => mq.removeEventListener("change", h);
   }, []);
   const isDark = theme === "dark" || (theme === "system" && systemDark);
+  useEffect(() => {
+    themeSystemBars(isDark);
+  }, [isDark]);
 
   /* ---------- popover placement ---------- */
   const popStyle = (rect: DOMRect): React.CSSProperties => {
@@ -464,6 +678,11 @@ export default function App() {
         <button className="btn hide-sm" onClick={() => setDialog("palette")} aria-label={t.commandPalette}>
           <IconCommand size={16} /> <span className="kbd">{MOD} K</span>
         </button>
+        {canInstall && (
+          <button className="btn hide-sm" onClick={install}>
+            <IconInstall size={16} /> {d.install}
+          </button>
+        )}
         <button className="btn btn-icon" onClick={() => setDialog("history")} aria-label={t.history} title={t.history}>
           <IconHistory />
         </button>
@@ -479,6 +698,11 @@ export default function App() {
           <IconSettings />
         </button>
       </header>
+      {!online && (
+        <div className="offline-bar" role="status">
+          <IconOffline size={16} /> {d.offline}
+        </div>
+      )}
 
       <div className="modebar">
         <div className="modes" role="toolbar" aria-label={t.modes}>
@@ -494,14 +718,16 @@ export default function App() {
           <span className="hide-sm">{t.fullRewrite}</span>
         </label>
         <button className={`btn ${tuneOpen ? "btn-line" : ""}`} aria-expanded={tuneOpen} onClick={() => setTuneOpen((o) => !o)}>
-          <IconSliders size={16} /> {t.tune}
+          <IconSliders size={16} /> {mobile ? d.options : t.tune}
         </button>
+        {mobile && <ScorePill d={d} inRes={det.inRes} outRes={det.outRes} checking={det.checking} onOpen={() => setReportOpen(true)} />}
       </div>
 
       <main className={`workspace${tuneOpen ? " with-tune" : ""}`} data-tab={tab}>
         <div className="seg-ctl mobile-tabs" role="tablist">
           <button role="tab" aria-pressed={tab === "input"} aria-selected={tab === "input"} onClick={() => setTab("input")}>{t.original}</button>
           <button role="tab" aria-pressed={tab === "output"} aria-selected={tab === "output"} onClick={() => setTab("output")}>{t.rewrite}</button>
+          <button role="tab" aria-pressed={tab === "diff"} aria-selected={tab === "diff"} onClick={() => setTab("diff")} disabled={!doc}>{d.diffTab}</button>
         </div>
 
         {/* ---------- input ---------- */}
@@ -518,7 +744,7 @@ export default function App() {
             setDragging(false);
             onFile(e.dataTransfer.files[0]);
           }}
-          style={dragging ? { outline: "2px dashed var(--teal)", outlineOffset: -6 } : undefined}
+          style={dragging ? { outline: "2px dashed var(--brand)", outlineOffset: -6 } : undefined}
         >
           <div className="pane-head">
             <div className="pane-title">{t.original}</div>
@@ -536,7 +762,7 @@ export default function App() {
             </div>
           )}
           <div className="pane-body">
-            <InputEditor ref={inputRef} value={input} onChange={setInput} lang={lang} placeholder={t.inputPlaceholder} hits={showAi ? before?.aiHits ?? null : null} disabled={busy} label={t.original} />
+            <InputEditor ref={inputRef} value={input} onChange={setInput} lang={lang} placeholder={t.inputPlaceholder} hits={showAi ? before?.aiHits ?? null : null} heat={showAi ? null : inHeat} disabled={busy} label={t.original} />
             {!input && (
               <div style={{ position: "absolute", insetInline: 26, bottom: 22, zIndex: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span className="help" style={{ margin: 0 }}>{t.tryASample}</span>
@@ -574,7 +800,7 @@ export default function App() {
               {verdict && !busy && (
                 <span
                   className="chip"
-                  style={{ color: verdict === "warn" ? "var(--warn)" : "var(--ok)", borderColor: "currentColor", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500 }}
+                  style={{ color: verdict === "warn" ? "var(--warn)" : "var(--brand-text)", borderColor: "currentColor", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500 }}
                   title={warnings.join("\n")}
                 >
                   {verdict === "warn" ? <IconAlert size={13} /> : <IconCheck size={13} />}
@@ -588,7 +814,10 @@ export default function App() {
             <button className="btn btn-icon" onClick={redo} disabled={!future.length || busy} aria-label={t.redo} title={`${t.redo} (${MOD} ⇧ Z)`}>
               <IconRedo size={17} />
             </button>
-            <button className={`btn ${view === "diff" ? "btn-line" : ""}`} onClick={() => setView(view === "diff" ? "clean" : "diff")} disabled={!doc || busy || editing !== null} aria-pressed={view === "diff"}>
+            <button className={`btn btn-icon ${showHeat ? "btn-line" : ""}`} onClick={() => setShowHeat((v) => !v)} aria-pressed={showHeat} aria-label={d.heatmap} title={d.heatmapHint}>
+              <IconScan size={16} />
+            </button>
+            <button className={`btn hide-sm ${view === "diff" ? "btn-line" : ""}`} onClick={() => setView(view === "diff" ? "clean" : "diff")} disabled={!doc || busy || editing !== null} aria-pressed={view === "diff"}>
               <IconDiff size={16} /> <span className="hide-sm">{t.diff}</span>
             </button>
             <button className="btn btn-icon" onClick={() => (editing === null ? setEditing(outputText) : (commit(buildDoc(input, editing)), setEditing(null)))} disabled={!doc || busy} aria-label={editing === null ? t.editText : t.doneEditing} title={editing === null ? t.editText : t.doneEditing} aria-pressed={editing !== null}>
@@ -615,6 +844,11 @@ export default function App() {
               </div>
             </>
           )}
+          {rehum && (
+            <div className="stages" style={{ padding: "8px 16px 0" }} role="status">
+              <span className="stage" data-state="active"><span className="dot" />{fmt(d.rehumanizing, { n: rehum.n, total: rehum.total })}</span>
+            </div>
+          )}
           {error && (
             <div className={`notice ${error.code === "aborted" ? "" : "error"}`} role="alert">
               <IconAlert size={16} />
@@ -636,8 +870,10 @@ export default function App() {
               <OutputView
                 doc={doc}
                 streaming={streaming}
-                view={view}
+                view={mobile && tab === "diff" ? "diff" : view}
                 input={input}
+                heat={heat}
+                locked={locked}
                 lang={lang}
                 activeId={pop?.kind === "seg" ? pop.id : null}
                 showAi={showAi}
@@ -681,6 +917,9 @@ export default function App() {
             <button className="btn" onClick={copyOut} disabled={!doc || busy}>
               <IconCopy size={16} /> {t.copy}
             </button>
+            <button className="btn btn-icon" onClick={share} disabled={!doc || busy} aria-label={d.share} title={d.share}>
+              <IconShare size={16} />
+            </button>
             <div style={{ position: "relative" }}>
               <button className="btn btn-line" onClick={() => setExportOpen((o) => !o)} disabled={!doc || busy} aria-haspopup="menu" aria-expanded={exportOpen}>
                 <IconDownload size={16} /> {t.export}
@@ -698,7 +937,22 @@ export default function App() {
           </div>
         </section>
 
-        {tuneOpen && <TunePanel t={t} ui={uiLang} onClose={() => setTuneOpen(false)} />}
+        {tuneOpen && !mobile && <TunePanel t={t} ui={uiLang} onClose={() => setTuneOpen(false)} />}
+
+        {!mobile && (
+          <ScoreCard
+            d={d}
+            ui={uiLang}
+            inRes={det.inRes}
+            outRes={det.outRes}
+            checking={det.checking}
+            error={det.error}
+            canCheck={!!(input.trim() || outputText.trim()) && !busy}
+            onCheck={checkAi}
+            onReport={() => setReportOpen(true)}
+            sourceLabel={sourceLabel}
+          />
+        )}
 
         <ReportPanel t={t} before={before} after={after} showAi={showAi} onToggleAi={setShowAi} />
       </main>
@@ -726,7 +980,44 @@ export default function App() {
                   <button className="btn btn-line" disabled={alts === "loading"} onClick={() => { const c = context([pop.id]); loadAlts("sentence", c.target, c.before, c.after); }}>
                     <IconSpark size={16} /> {t.alternatives}
                   </button>
+                  <button
+                    className="btn btn-line"
+                    disabled={alts === "loading" || locked.has(pop.id)}
+                    onClick={async () => {
+                      setAlts("loading");
+                      try {
+                        const a = await rewriteOne(pop.id, doc!);
+                        if (a) commit(updateSeg(doc!, pop.id, { text: a, status: "edited" }));
+                        setPop(null);
+                        setAlts(null);
+                        haptic();
+                      } catch (e) {
+                        setAlts({ error: errText(e) });
+                      }
+                    }}
+                  >
+                    <IconScan size={16} /> {d.rehumanizeOne}
+                  </button>
+                  <button
+                    className="btn btn-line"
+                    aria-pressed={locked.has(pop.id)}
+                    onClick={() => {
+                      const id = pop.id;
+                      const was = locked.has(id);
+                      setLocked((l) => {
+                        const n = new Set(l);
+                        if (was) n.delete(id);
+                        else n.add(id);
+                        return n;
+                      });
+                      if (!was) toast(d.locked);
+                      setPop(null);
+                    }}
+                  >
+                    <IconLock size={16} /> {locked.has(pop.id) ? d.unlock : d.lock}
+                  </button>
                 </div>
+                {heat?.get(pop.id) && <p className="help" style={{ marginTop: 8 }}>{heat.get(pop.id)!.tip}</p>}
               </>
             )}
             {pop.kind === "sel" && (
@@ -815,6 +1106,65 @@ export default function App() {
             </table>
           </div>
         </Dialog>
+      )}
+
+      {reportOpen && (
+        <DetectReport
+          d={d}
+          ui={uiLang}
+          closeLabel={t.close}
+          inRes={det.inRes}
+          outRes={det.outRes}
+          threshold={store.detect.threshold}
+          onThreshold={(n) => store.setDetect({ threshold: n })}
+          onRehumanize={doc ? rehumanizeFlagged : null}
+          busy={busy}
+          onExport={exportReport}
+          onClose={() => setReportOpen(false)}
+          onJump={() => {
+            setReportOpen(false);
+            setShowHeat(true);
+            setTab(doc ? "output" : "input");
+          }}
+          sourceLabel={sourceLabel}
+        />
+      )}
+      {tuneOpen && mobile && (
+        <Sheet title={d.options} onClose={() => setTuneOpen(false)} closeLabel={t.close}>
+          <TunePanel t={t} ui={uiLang} onClose={() => setTuneOpen(false)} embedded />
+        </Sheet>
+      )}
+      {iosGuide && (
+        <Dialog title={d.installIosTitle} onClose={() => setIosGuide(false)} closeLabel={t.close}>
+          <ol className="dialog-body ios-steps">
+            <li><IconShare size={18} /> {d.installIos1}</li>
+            <li><IconInstall size={18} /> {d.installIos2}</li>
+            <li><IconCheck size={18} /> {d.installIos3}</li>
+          </ol>
+        </Dialog>
+      )}
+
+      {mobile && (
+        <nav className="action-bar" aria-label={t.appName}>
+          {busy ? (
+            <button className="btn btn-primary" onClick={stop}>
+              <IconStop size={18} /> {t.stop}
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={humanize} disabled={!input.trim()}>
+              <IconSpark size={18} /> {t.humanize}
+            </button>
+          )}
+          <button className="btn btn-line" onClick={() => { checkAi(); setReportOpen(true); }} disabled={(!input.trim() && !outputText) || det.checking}>
+            <IconScan size={18} /> {d.checkAi}
+          </button>
+          <button className="btn btn-line btn-icon" onClick={copyOut} disabled={!doc || busy} aria-label={t.copy}>
+            <IconCopy size={18} />
+          </button>
+          <button className="btn btn-line btn-icon" onClick={share} disabled={(!doc && !input) || busy} aria-label={d.share}>
+            <IconShare size={18} />
+          </button>
+        </nav>
       )}
 
       <div className="toast-wrap" aria-live="polite">

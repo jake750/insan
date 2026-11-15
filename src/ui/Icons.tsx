@@ -41,13 +41,19 @@ export const IconLock = make(<><rect x="4.5" y="9" width="11" height="8" rx="1.5
 export const IconStop = make(<rect x="5.5" y="5.5" width="9" height="9" rx="1.5" />);
 export const IconLayers = make(<><path d="m10 3 7 4-7 4-7-4 7-4Z" /><path d="m3 11 7 4 7-4" /></>);
 export const IconAlert = make(<><path d="M10 3 2.5 16.5h15L10 3Z" /><path d="M10 8.5v3.5M10 14.2v.1" /></>);
+export const IconScan = make(<><path d="M3.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2M13 3.5h2A1.5 1.5 0 0 1 16.5 5v2M16.5 13v2a1.5 1.5 0 0 1-1.5 1.5h-2M7 16.5H5A1.5 1.5 0 0 1 3.5 15v-2" /><path d="M6.5 10h7" /></>);
+export const IconReport = make(<><path d="M5 3.5h7l3 3v10H5z" /><path d="M8 13v-2M10.5 13V9M13 13v-3" /></>);
+export const IconShare = make(<><path d="M10 12.5V3.5M6.5 7 10 3.5 13.5 7" /><path d="M6 9.5H5a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1h-1" /></>);
+export const IconFlame = make(<path d="M10 17c3 0 5-2 5-5 0-3.5-3-5-3.5-8.5C9 5.5 7.5 7.5 8 10c-1-.5-1.5-1.5-1.5-2.5C5.5 8.5 5 10 5 12c0 3 2 5 5 5Z" />);
+export const IconInstall = make(<><rect x="5.5" y="2.5" width="9" height="15" rx="2" /><path d="M10 6.5v6M7.5 10 10 12.5 12.5 10" /></>);
+export const IconOffline = make(<><path d="M3 3l14 14" /><path d="M5.5 8.6A7 7 0 0 1 9 7.1M14.5 8.6A7 7 0 0 0 12.6 7.5M7.5 11.5a3.5 3.5 0 0 1 3.4-1M10 15h.01" /></>);
 export const IconGlobe = make(<><circle cx="10" cy="10" r="7" /><path d="M3 10h14M10 3c2 2.2 2.8 4.5 2.8 7s-.8 4.8-2.8 7c-2-2.2-2.8-4.5-2.8-7S8 5.2 10 3Z" /></>);
 
 /** Brand mark: a rhythm of uneven bars — what human sentences look like. */
 export function Logo({ size = 26 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="var(--teal)" />
+      <rect width="32" height="32" rx="8" fill="var(--brand)" />
       {[
         [7, 14],
         [11.5, 6],
@@ -55,7 +61,7 @@ export function Logo({ size = 26 }: { size?: number }) {
         [20.5, 10],
         [25, 15],
       ].map(([x, h], i) => (
-        <rect key={i} x={x - 1.5} y={25 - h} width="3" height={h} rx="1.5" fill="var(--teal-ink)" />
+        <rect key={i} x={x - 1.5} y={25 - h} width="3" height={h} rx="1.5" fill="var(--brand-ink)" />
       ))}
     </svg>
   );
