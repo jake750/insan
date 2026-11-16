@@ -8,6 +8,12 @@ const SNAPS = [0.55, 0.92]; // share of the viewport height
 
 export function Sheet({ title, onClose, closeLabel, children }: { title: string; onClose: () => void; closeLabel: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Keep the latest onClose without re-running the open/focus effect on every parent render
+  // (the parent passes a new arrow each time, which used to steal focus from the field being typed in).
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
   const [snap, setSnap] = useState(0);
   const [drag, setDrag] = useState<number | null>(null);
   const start = useRef<{ y: number; h: number } | null>(null);
@@ -18,7 +24,7 @@ export function Sheet({ title, onClose, closeLabel, children }: { title: string;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
       }
       if (e.key === "Tab" && ref.current) {
         const els = [...ref.current.querySelectorAll<HTMLElement>("button, input, select, textarea, a[href]")].filter((el) => !el.hasAttribute("disabled"));
@@ -37,7 +43,7 @@ export function Sheet({ title, onClose, closeLabel, children }: { title: string;
       window.removeEventListener("keydown", onKey, true);
       prev?.focus?.({ preventScroll: true });
     };
-  }, [onClose]);
+  }, []);
 
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const onDown = (e: React.PointerEvent) => {

@@ -20,7 +20,7 @@ const fail = (status: number, data: unknown): never => {
 export const gptzero: ExternalAdapter = {
   id: "gptzero",
   label: "GPTZero",
-  site: "https://gptzero.me/dashboard",
+  site: "https://gptzero.me/developers",
   fields: ["key"],
   hosts: ["api.gptzero.me"],
   async detect(text, creds, post, signal) {
@@ -40,7 +40,7 @@ export const gptzero: ExternalAdapter = {
 export const sapling: ExternalAdapter = {
   id: "sapling",
   label: "Sapling",
-  site: "https://sapling.ai/user/settings",
+  site: "https://sapling.ai/api_settings",
   fields: ["key"],
   hosts: ["api.sapling.ai"],
   async detect(text, creds, post, signal) {
@@ -58,7 +58,7 @@ export const sapling: ExternalAdapter = {
 export const originality: ExternalAdapter = {
   id: "originality",
   label: "Originality.ai",
-  site: "https://app.originality.ai/home/api",
+  site: "https://originality.ai/api-documentation",
   fields: ["key"],
   hosts: ["api.originality.ai"],
   async detect(text, creds, post, signal) {
@@ -115,4 +115,19 @@ export const proxiedPost =
     const u = new URL(url);
     const base = new URL(proxyUrl, typeof window !== "undefined" ? window.location.origin : "http://localhost").toString().replace(/\/$/, "");
     return browserPost(`${base}${u.pathname}`, { ...headers, "x-insan-target": u.origin }, body, signal);
+  };
+
+/**
+ * Web default: call the detector directly, and when the browser blocks it (CORS shows up as a TypeError
+ * from fetch) retry once through the app's own stateless proxy. Inside the native app use nativePost instead.
+ */
+export const autoPost =
+  (proxyUrl: string): HttpPost =>
+  async (url, headers, body, signal) => {
+    try {
+      return await browserPost(url, headers, body, signal);
+    } catch (e) {
+      if (signal?.aborted || !(e instanceof TypeError)) throw e;
+      return proxiedPost(proxyUrl)(url, headers, body, signal);
+    }
   };

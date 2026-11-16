@@ -5,6 +5,12 @@ import { IconX } from "./Icons";
 /** Modal dialog: Escape closes, focus moves in and is restored on close, Tab stays inside. */
 export function Dialog({ title, onClose, children, className = "", closeLabel, hideHead }: { title: string; onClose: () => void; children: ReactNode; className?: string; closeLabel: string; hideHead?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Keep the latest onClose without re-running the open/focus effect on every parent render
+  // (the parent passes a new arrow each time, which used to steal focus from the field being typed in).
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const first = ref.current?.querySelector<HTMLElement>("[data-autofocus], input, select, textarea, button:not([data-close])");
@@ -12,7 +18,7 @@ export function Dialog({ title, onClose, children, className = "", closeLabel, h
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
       }
       if (e.key === "Tab" && ref.current) {
         const els = [...ref.current.querySelectorAll<HTMLElement>("button, input, select, textarea, a[href], [tabindex]:not([tabindex='-1'])")].filter((el) => !el.hasAttribute("disabled"));
@@ -32,7 +38,7 @@ export function Dialog({ title, onClose, children, className = "", closeLabel, h
       window.removeEventListener("keydown", onKey, true);
       prev?.focus?.();
     };
-  }, [onClose]);
+  }, []);
   return (
     <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`dialog ${className}`} role="dialog" aria-modal="true" aria-label={title} ref={ref}>

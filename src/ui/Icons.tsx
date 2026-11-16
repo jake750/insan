@@ -19,7 +19,7 @@ const make = (d: React.ReactNode) =>
     return <svg {...base(size)} {...p}>{d}</svg>;
   };
 
-export const IconSettings = make(<><circle cx="10" cy="10" r="2.6" /><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1 4.7 4.7" /></>);
+export const IconSettings = make(<><path d="M15.60 8.14 L17.46 8.55 L17.46 11.45 L15.60 11.86 L15.27 12.65 L16.30 14.25 L14.25 16.30 L12.65 15.27 L11.86 15.60 L11.45 17.46 L8.55 17.46 L8.14 15.60 L7.35 15.27 L5.75 16.30 L3.70 14.25 L4.73 12.65 L4.40 11.86 L2.54 11.45 L2.54 8.55 L4.40 8.14 L4.73 7.35 L3.70 5.75 L5.75 3.70 L7.35 4.73 L8.14 4.40 L8.55 2.54 L11.45 2.54 L11.86 4.40 L12.65 4.73 L14.25 3.70 L16.30 5.75 L15.27 7.35Z" strokeLinejoin="round" /><circle cx="10" cy="10" r="2.4" /></>);
 export const IconHistory = make(<><path d="M3.5 10a6.5 6.5 0 1 0 2-4.7" /><path d="M3 3.5v3h3" /><path d="M10 6.5V10l2.5 1.5" /></>);
 export const IconSun = make(<><circle cx="10" cy="10" r="3.2" /><path d="M10 2v1.5M10 16.5V18M18 10h-1.5M3.5 10H2M15.6 4.4l-1 1M5.4 14.6l-1 1M15.6 15.6l-1-1M5.4 5.4l-1-1" /></>);
 export const IconMoon = make(<path d="M16.5 12.2A6.8 6.8 0 0 1 7.8 3.5a6.8 6.8 0 1 0 8.7 8.7Z" />);

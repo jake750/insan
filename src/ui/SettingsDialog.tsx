@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { makeChat } from "../engine/providers";
 import { ANTHROPIC_MODELS, EngineError } from "../engine/types";
-import { ADAPTERS } from "../detection/external";
+import { ADAPTERS, autoPost, proxiedPost } from "../detection/external";
+import { nativePost } from "../native";
 import { DSTRINGS } from "./detect/strings";
 import { Dialog } from "./Dialog";
 import { fmt, type Strings, type UILang } from "./i18n";
@@ -17,13 +18,34 @@ const ENDPOINTS = [
   { label: "OpenRouter", url: "https://openrouter.ai/api/v1", model: "", noThink: false },
 ];
 
+// ~75 words: long enough for every detector's minimum, short enough to cost almost nothing.
+const DET_SAMPLE =
+  "Remote work has changed how many teams operate. Some people enjoy the quiet and the time saved on commuting, while others miss the small talk and quick questions at the next desk. Managers have had to learn new habits, such as writing things down and trusting people to finish work without being watched. Whether it lasts depends on each company, but most agree that some flexibility is here to stay.";
+
 export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; onClose: () => void; errText: (e: unknown) => string; onWiped: () => void }) {
   const s = useStore();
   const d = DSTRINGS[s.uiLang];
   const [show, setShow] = useState(false);
   const [test, setTest] = useState<{ state: "idle" | "busy" | "ok" | "err"; msg?: string }>({ state: "idle" });
   const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
+  const [detTest, setDetTest] = useState<Record<string, { state: "busy" | "ok" | "err"; msg?: string } | undefined>>({});
   const kind = s.provider.kind;
+
+  // Runs one detector on a short sample, so the user sees right away whether the key works.
+  const testDetector = async (id: string) => {
+    const a = ADAPTERS.find((x) => x.id === id);
+    if (!a) return;
+    const creds = s.keys.det[id] ?? {};
+    if (a.fields.some((f) => !creds[f]?.trim())) return setDetTest((m) => ({ ...m, [id]: { state: "err", msg: d.keyMissing } }));
+    setDetTest((m) => ({ ...m, [id]: { state: "busy" } }));
+    const post = nativePost ?? (s.provider.useProxy ? proxiedPost(s.provider.proxyUrl) : autoPost(s.provider.proxyUrl));
+    try {
+      await a.detect(DET_SAMPLE, creds, post);
+      setDetTest((m) => ({ ...m, [id]: { state: "ok" } }));
+    } catch (e) {
+      setDetTest((m) => ({ ...m, [id]: { state: "err", msg: e instanceof Error ? e.message : String(e) } }));
+    }
+  };
 
   const runTest = async () => {
     setTest({ state: "busy" });
@@ -50,6 +72,7 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
   return (
     <Dialog title={t.settings} onClose={onClose} closeLabel={t.close}>
       <div className="dialog-body">
+        <p className="help" style={{ marginTop: 0 }}>{d.savedAuto}</p>
         <div className="section-title">{t.provider}</div>
         <div className="seg-ctl" role="group" aria-label={t.provider}>
           {(["anthropic", "openai"] as const).map((k) => (
@@ -156,6 +179,8 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
           )}
         </div>
 
+        <details className="adv">
+          <summary className="field-label">{t.advanced}</summary>
         {kind === "openai" && (
           <label className="check">
             <input type="checkbox" checked={s.provider.noThink} onChange={(e) => s.setProvider({ noThink: e.target.checked })} />
@@ -176,6 +201,7 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
             <input className="input" dir="ltr" value={s.provider.proxyUrl} onChange={(e) => s.setProvider({ proxyUrl: e.target.value })} />
           </label>
         )}
+        </details>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button className="btn btn-line" onClick={runTest} disabled={test.state === "busy"}>
@@ -211,6 +237,7 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
         <div>
           <div className="field-label">{d.detectors}</div>
           <p className="help" style={{ marginTop: 0 }}>{d.detectorsHelp}</p>
+          <p className="help">{d.skipHint}</p>
           <div className="det-list">
             {ADAPTERS.map((a) => {
               const on = !!s.detect.enabled[a.id];
@@ -221,20 +248,46 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
                     <span>{a.label}</span>
                     <a className="help" href={a.site} target="_blank" rel="noopener noreferrer" style={{ marginInlineStart: "auto", marginTop: 0 }}>{d.getKey}</a>
                   </label>
-                  {on &&
-                    a.fields.map((f) => (
-                      <input
-                        key={f}
-                        className="input"
-                        type={f === "email" ? "email" : "password"}
-                        autoComplete="off"
-                        spellCheck={false}
-                        placeholder={f === "email" ? d.email : d.apiKey}
-                        aria-label={`${a.label} ${f === "email" ? d.email : d.apiKey}`}
-                        value={s.keys.det[a.id]?.[f] ?? ""}
-                        onChange={(e) => s.setDetKey(a.id, f, e.target.value)}
-                      />
-                    ))}
+                  {on && (
+                    <>
+                      <p className="help" style={{ marginTop: 0, whiteSpace: "pre-line" }}>{a.fields.includes("email") ? d.detStepsEmail : d.detSteps}</p>
+                      {a.fields.map((f) => (
+                        <label key={f}>
+                          <span className="field-label">{f === "email" ? d.email : d.apiKey}</span>
+                          <input
+                            className="input"
+                            dir="ltr"
+                            type={f === "email" ? "email" : "password"}
+                            inputMode={f === "email" ? "email" : "text"}
+                            autoComplete="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                            placeholder={f === "email" ? "name@example.com" : "••••••••"}
+                            value={s.keys.det[a.id]?.[f] ?? ""}
+                            onChange={(e) => {
+                              s.setDetKey(a.id, f, e.target.value);
+                              setDetTest((m) => (m[a.id] ? { ...m, [a.id]: undefined } : m));
+                            }}
+                          />
+                        </label>
+                      ))}
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <button className="btn btn-line" onClick={() => testDetector(a.id)} disabled={detTest[a.id]?.state === "busy"}>
+                          {detTest[a.id]?.state === "busy" ? d.testingKey : d.testKey}
+                        </button>
+                        {detTest[a.id]?.state === "ok" && (
+                          <span className="up" style={{ display: "flex", gap: 4, alignItems: "center" }} role="status">
+                            <IconCheck size={16} /> {d.keyOk}
+                          </span>
+                        )}
+                        {detTest[a.id]?.state === "err" && (
+                          <span style={{ color: "var(--del)", display: "flex", gap: 6, alignItems: "center", fontSize: 13 }} role="alert">
+                            <IconAlert size={16} /> {detTest[a.id]?.msg}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}

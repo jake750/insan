@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 };
 
 // Applies the saved theme and interface direction before first paint (no flash).
-const boot = `try{var s=JSON.parse(localStorage.getItem("insan.settings")||"null");if(s){if(s.theme&&s.theme!=="system")document.documentElement.setAttribute("data-theme",s.theme);if(s.uiLang){document.documentElement.lang=s.uiLang;document.documentElement.dir=s.uiLang==="ar"?"rtl":"ltr"}}}catch(e){}`;
+const boot = `try{var s=JSON.parse(localStorage.getItem("insan.settings")||"null");if(s){if(s.theme&&s.theme!=="system")document.documentElement.setAttribute("data-theme",s.theme);if(s.uiLang){document.documentElement.lang=s.uiLang;document.documentElement.dir="ltr"}}}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -2,7 +2,7 @@
 // Detection state for the app: instant local scores while typing, full checks (judge + external detectors) on demand.
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react";
 import { detect, detectInstant, type DetectionResult } from "../../detection";
-import { browserPost, proxiedPost } from "../../detection/external";
+import { autoPost, proxiedPost } from "../../detection/external";
 import type { HttpPost } from "../../detection/types";
 import type { Lang } from "../../engine/types";
 import { nativePost } from "../../native";
@@ -36,7 +36,7 @@ export function useDetection(input: string, output: string, lang: Lang, streamin
       const external = Object.entries(s.detect.enabled)
         .filter(([, on]) => on)
         .map(([id]) => ({ id, creds: s.keys.det[id] ?? {} }));
-      const post: HttpPost = nativePost ?? (s.provider.useProxy ? proxiedPost(s.provider.proxyUrl) : browserPost);
+      const post: HttpPost = nativePost ?? (s.provider.useProxy ? proxiedPost(s.provider.proxyUrl) : autoPost(s.provider.proxyUrl));
       ac.current?.abort();
       const ctl = new AbortController();
       ac.current = ctl;

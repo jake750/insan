@@ -183,7 +183,7 @@ export default function App() {
   }, [theme]);
   useEffect(() => {
     document.documentElement.lang = uiLang;
-    document.documentElement.dir = uiLang === "ar" ? "rtl" : "ltr";
+    document.documentElement.dir = "ltr"; // Arabic switches the language only, not the layout
     document.title = { ar: "إنسان — أنسنة النصوص", fr: "Insan — humanisez vos textes", en: "Insan — humanize your writing" }[uiLang];
   }, [uiLang]);
 

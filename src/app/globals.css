@@ -562,3 +562,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .sheet-handle span { width: 40px; height: 5px; border-radius: 99px; background: var(--line-2); }
   .sheet .dialog-head { padding-top: 0; }
 }
+
+/* Settings: collapsible advanced options */
+.adv { display: grid; gap: 12px; }
+.adv > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+
+/* Arabic UI keeps the left-to-right layout; each text block still takes its own direction so mixed Arabic/Latin reads in order. */
+html[lang=ar] :is(p, h1, h2, h3, label, summary, button, a, span, li, .help, .field-label, .toast) { unicode-bidi: plaintext; }
+.adv > summary { list-style: none; gap: 8px; }
+.adv > summary::-webkit-details-marker { display: none; }
+.adv > summary::before { content: "›"; font-size: 18px; transition: transform 0.2s; }
+.adv[open] > summary::before { transform: rotate(90deg); }
