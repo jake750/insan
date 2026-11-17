@@ -12,7 +12,9 @@ export type Mode =
   | "shorten"
   | "persuasive"
   | "storytelling"
-  | "technical";
+  | "technical"
+  | "marketing"
+  | "conversational";
 
 export const MODES: Mode[] = [
   "standard",
@@ -27,6 +29,8 @@ export const MODES: Mode[] = [
   "persuasive",
   "storytelling",
   "technical",
+  "marketing",
+  "conversational",
 ];
 
 export type Lang = "en" | "fr" | "ar";
@@ -76,6 +80,8 @@ export interface RewriteOptions {
   keepFormatting: boolean;
   /** Second LLM pass that checks meaning and repairs drift. */
   verify: boolean;
+  /** Local style check after each chunk; a targeted polish pass fixes any tells it finds. */
+  polish: boolean;
 }
 
 export const DEFAULT_OPTIONS: RewriteOptions = {
@@ -91,6 +97,7 @@ export const DEFAULT_OPTIONS: RewriteOptions = {
   banned: [],
   keepFormatting: true,
   verify: true,
+  polish: true,
 };
 
 export type ProviderKind = "anthropic" | "openai";
@@ -148,7 +155,7 @@ export interface ChunkResult {
   repaired: boolean;
 }
 
-export type PipelineStage = "analyzing" | "rewriting" | "verifying" | "repairing" | "done";
+export type PipelineStage = "analyzing" | "rewriting" | "polishing" | "verifying" | "repairing" | "done";
 
 export interface PipelineEvent {
   stage: PipelineStage;

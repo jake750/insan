@@ -46,6 +46,10 @@ export const MODE_GUIDES: Record<Mode, string> = {
     "Make the case land: strong opening, concrete benefits, confident verbs, anticipate one objection if the source implies it. No invented evidence, no manipulative claims.",
   storytelling:
     "Recast the content with narrative momentum: a situation, tension, resolution, concrete moments. Keep all facts intact and in a sensible order.",
+  marketing:
+    "Write brand copy a good human copywriter would sign off on: lead with the reader's benefit, concrete verbs, short punchy lines mixed with one fuller sentence, a clear next step if the source has one. No hype words (revolutionary, cutting-edge, game-changing, unleash), no invented claims, numbers or testimonials.",
+  conversational:
+    "Write the way a knowledgeable person explains this out loud to one listener: address the reader as \"you\" where it fits, contractions, an occasional question the reader would actually ask, plain words, sentences of very different lengths. Friendly and clear, never slangy or sloppy.",
   technical:
     "Write like a senior engineer documenting something: exact terms, consistent naming, imperative steps where there are steps, no marketing tone. Never alter code, commands, identifiers or units.",
 };
@@ -74,7 +78,8 @@ export const AI_PATTERNS: Record<Lang, string> = {
 - "Not only X but also Y", "It's not just X, it's Y", rhetorical "So, what does this mean?" questions.
 - Symmetric paragraphs of identical length and shape; every paragraph ending with a tidy summary sentence.
 - Over-hedging ("may potentially", "could possibly", "it can be argued that") and empty intensifiers (truly, really, incredibly).
-- Em-dash overuse; colon-led reveals; generic upbeat conclusions ("the future looks bright", "a journey worth taking").`,
+- Em-dash overuse; colon-led reveals; generic upbeat conclusions ("the future looks bright", "a journey worth taking").
+- Abstract nouns doing the work of verbs ("the implementation of", "the utilization of"); "a wide range of", "pave the way", "shed light on", "best practices", "full potential".`,
   fr: `- Mots tics : « crucial », « essentiel », « primordial », « incontournable », « véritable », « au cœur de », « paysage » (figuré), « naviguer » (figuré), « levier », « optimiser », « dynamique », « enjeux » à répétition, « s'inscrire dans », « favoriser ».
 - Ouvertures/fermetures toutes faites : « Dans un monde en constante évolution », « À l'ère du numérique », « Il est important de noter que », « Il convient de souligner que », « En conclusion », « En somme », « En définitive ».
 - Chaînes de connecteurs : « De plus », « En outre », « Par ailleurs », « Ainsi » en début de phrases successives.
@@ -84,7 +89,8 @@ export const AI_PATTERNS: Record<Lang, string> = {
 - سلاسل الروابط: «بالإضافة إلى ذلك»، «علاوة على ذلك»، «فضلاً عن ذلك»، «كما أن» في بداية جمل متتالية.
 - الثلاثيات المتكررة، وبنية «ليس فقط… بل أيضاً» المترجمة حرفياً، والأسئلة البلاغية المصطنعة.
 - الترجمة الحرفية من الإنجليزية (مثل «يلعب دوراً»، «في نهاية اليوم»، «على الجانب الآخر»)؛ الإفراط في المبني للمجهول؛ الخواتيم العامة المتفائلة («ختاماً، يمكن القول إن…»).
-- فقرات متماثلة الطول تنتهي كلها بجملة تلخيصية.`,
+- فقرات متماثلة الطول تنتهي كلها بجملة تلخيصية.
+- عبارات جاهزة أخرى: «في عصرنا المتسارع»، «لم يعد خياراً بل ضرورة»، «ضرورة حتمية»، «حجر الزاوية»، «مما لا شك فيه»، «في هذا السياق»، «يمكن القول إن».`,
 };
 
 /* ------------------------------------------------------------------ */
@@ -106,6 +112,13 @@ const VARIANT_GUIDE: Record<Variant, string> = {
   "ar-GULF":
     "Write in Modern Standard Arabic with a light Gulf flavour. For the casual mode you may write in Gulf colloquial Arabic.",
 };
+
+/** Extra rules for Arabic output: small models often break these. */
+const ARABIC_RULES = `## Arabic correctness (الفصحى)
+- Grammar must be correct Modern Standard Arabic: agreement in gender and number, correct إضافة (e.g. «الشركات الصغيرة» not «شركات الصغيرة»), correct case endings where they show (e.g. «دوراً»، «مهندسون/مهندسين»).
+- Hamza, ta marbuta (ة) and alif maqsura (ى) must be spelled correctly; do not add diacritics except where the source has them or a word would be ambiguous.
+- Prefer native Arabic sentence order (often verb first) and native connectors (فـ، ثم، إذ، لكنّ، أما… فـ) over translated English structures.
+- Use Arabic punctuation: «،» «؛» «؟» and keep digits in the same form as the source (Western 2024 or Arabic-Indic ٢٠٢٤).`;
 
 const READING_GUIDE: Record<ReadingLevel, string> = {
   auto: "",
@@ -144,6 +157,10 @@ export function buildRewriteSystem(opts: RewriteOptions, brief: DocBrief | null)
   lines.push(`\n## How much to change\n${INTENSITY[opts.intensity] ?? INTENSITY[3]}`);
 
   lines.push(`\n## Language\n${VARIANT_GUIDE[opts.variant]}`);
+  // MSA rules, unless the output is meant to be in another language or in casual dialect
+  const arabicOut = opts.variant === "auto" ? lang === "ar" : opts.variant.startsWith("ar-");
+  const dialect = opts.mode === "casual" && /^ar-(TN|EG|GULF)$/.test(opts.variant);
+  if (arabicOut && !dialect) lines.push(ARABIC_RULES);
   const rl = READING_GUIDE[opts.readingLevel];
   if (rl) lines.push(rl);
   const tl = toneLine(opts.tone);
@@ -151,8 +168,9 @@ export function buildRewriteSystem(opts: RewriteOptions, brief: DocBrief | null)
   if (opts.audience.trim()) lines.push(`Audience: ${opts.audience.trim()}. Choose words and examples that fit them.`);
 
   lines.push(`\n## Make it human — at sentence AND paragraph level
-- Vary sentence length on purpose: mix short, punchy sentences with longer ones that carry a thought through. Avoid runs of same-length sentences.
-- Vary sentence openings; do not start consecutive sentences the same way.
+- Vary sentence length on purpose: in every paragraph of three or more sentences, include at least one short sentence (under 8 words) and one that runs longer (over 25 words). Never write three sentences in a row of about the same length.
+- Vary sentence openings: not every sentence should start with the subject. Open some with a clause, a time or place, an object, or a short verb phrase. Never start two consecutive sentences with the same word.
+- Do not mirror the source's sentence boundaries one-for-one; merge two short related sentences or split a long one where it reads better (keeping paragraph breaks if formatting is kept).
 - Prefer concrete, specific wording over abstract filler. Use the plainest word that is precise.
 - Use natural transitions (or none) instead of stock connectors; let logic carry the reader.
 - Paragraphs should not all have the same shape or length, and should not all end with a summary line.
@@ -239,6 +257,17 @@ Reply with ONLY a JSON object, no code fences: {"issues":[{"kind":"added|lost|ch
 export function buildVerifyUser(original: string, rewrite: string, protectedItems: string[]): string {
   const p = protectedItems.length ? `\n<protected>\n${protectedItems.join("\n")}\n</protected>` : "";
   return `<original>\n${original}\n</original>\n<rewrite>\n${rewrite}\n</rewrite>${p}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Polish pass: fixes the specific tells the local style check found   */
+/* ------------------------------------------------------------------ */
+
+export const POLISH_SYSTEM = `You are a sharp human line editor. You receive a rewritten text and a short list of concrete style problems found in it. Fix exactly those problems with the fewest changes: replace the named phrases with plain, specific wording (in the text's own language), rework the named sentence openings, and split or join the named sentences to vary their length. Leave every other sentence as it is.
+Rules: keep every fact, number, name, quotation and tokens like ⟦P0⟧ exactly; keep exactly the same number of paragraphs, separated by blank lines, in the same order (never merge or split paragraphs); do not add new information, examples or opinions; do not introduce new stock phrases or connectors. Return ONLY the edited text.`;
+
+export function buildPolishUser(text: string, issues: string[]): string {
+  return `<problems>\n${issues.map((i) => `- ${i}`).join("\n")}\n</problems>\n<text>\n${text}\n</text>`;
 }
 
 export const REPAIR_SYSTEM = `You fix meaning drift in a rewritten text with the smallest possible edits. Keep the rewrite's style, rhythm and wording everywhere else. Restore lost facts, remove invented ones, correct changed meaning, and restore protected items verbatim. Return ONLY the corrected rewrite.

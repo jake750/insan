@@ -28,6 +28,7 @@ export function HistoryDialog({ t, ui, enabled, onClose, onOpen }: { t: Strings;
               <button className="btn" style={{ flex: 1, height: "auto", padding: 0, display: "block", textAlign: "start", whiteSpace: "normal" }} onClick={() => onOpen(h)}>
                 <div className="help" style={{ margin: 0 }}>
                   {dateFmt.format(h.createdAt)} ({MODE_LABELS[ui][h.mode as Mode] ?? h.mode})
+                  {h.scoreIn !== undefined && h.scoreOut !== undefined && <span dir="ltr"> · AI {h.scoreIn}% → {h.scoreOut}%</span>}
                 </div>
                 <div dir="auto" style={{ color: "var(--ink)", fontFamily: "var(--font-text)", fontSize: 14.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                   {h.output}

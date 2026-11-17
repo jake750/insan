@@ -70,3 +70,61 @@ test("system prompt includes options", () => {
   const s = buildRewriteSystem({ ...DEFAULT_OPTIONS, mode: "academic", banned: ["utilize"], locked: ["Insan"] }, null);
   assert.ok(s.includes("researcher") && s.includes("utilize") && s.includes("Insan"));
 });
+
+import { styleIssues } from "../src/engine/style";
+import { acceptPolish } from "../src/engine/pipeline";
+
+test("style check names leftover stock phrases and connectors (EN)", () => {
+  const r = styleIssues("Moreover, the plan works. In today's digital landscape, teams leverage robust tools. It ships in May.", "en");
+  const all = r.issues.join(" ");
+  assert.match(all, /Moreover/);
+  assert.match(all, /leverage/);
+  assert.match(all, /robust/);
+  assert.ok(r.weight > 0);
+});
+
+test("style check flags flat rhythm and repeated openers", () => {
+  const flat = "The team met on Monday to review the plan. The plan covered budget and hiring for next year. The budget was approved after a short discussion today. The hiring plan needs another review next week. The manager will send the notes to everyone soon.";
+  const r = styleIssues(flat, "en");
+  assert.ok(r.issues.some((i) => /too even|same length/.test(i)), r.issues.join("\n"));
+  assert.ok(r.issues.some((i) => /start with "The"/.test(i)), r.issues.join("\n"));
+});
+
+test("style check is quiet on varied human prose", () => {
+  const ok = "We tried. It failed twice, first because the server ran out of memory and then because nobody had told the night shift that the backup job moved to two in the morning. Third time, it worked. Ask Sam why.";
+  assert.equal(styleIssues(ok, "en").issues.length, 0);
+});
+
+test("style check handles Arabic stock phrases and openers", () => {
+  const r = styleIssues("في عصرنا المتسارع اليوم، أصبح التحول الرقمي ضرورة حتمية. علاوة على ذلك، يساعد الشركات على النمو.", "ar");
+  const all = r.issues.join(" ");
+  assert.match(all, /عصرنا المتسارع/);
+  assert.match(all, /ضرورة حتمية/);
+  assert.match(all, /علاوة على ذلك/);
+});
+
+test("polish is accepted only when it keeps placeholders, length and lowers the tells", () => {
+  const map = new Map([["⟦P0⟧", "https://x.org"]]);
+  const before = "Moreover, see ⟦P0⟧ for robust and seamless details about the plan.";
+  const w = styleIssues(before, "en").weight;
+  assert.equal(acceptPolish(before, "See ⟦P0⟧ for the full details about the plan we made.", ["⟦P0⟧"], w, "en", map), true);
+  assert.equal(acceptPolish(before, "See the site for the full details about the plan we made.", ["⟦P0⟧"], w, "en", map), false);
+  assert.equal(acceptPolish(before, "See ⟦P0⟧.", ["⟦P0⟧"], w, "en", map), false);
+});
+
+test("Arabic MSA rules are added only for Arabic output that is not casual dialect", () => {
+  const ar = { lang: "ar" as const, register: "x", domain: "y", keep: [], terminology: [] };
+  const en = { ...ar, lang: "en" as const };
+  assert.match(buildRewriteSystem(DEFAULT_OPTIONS, ar), /Arabic correctness/);
+  assert.doesNotMatch(buildRewriteSystem(DEFAULT_OPTIONS, en), /Arabic correctness/);
+  assert.doesNotMatch(buildRewriteSystem({ ...DEFAULT_OPTIONS, mode: "casual", variant: "ar-TN" }, ar), /Arabic correctness/);
+  assert.match(buildRewriteSystem({ ...DEFAULT_OPTIONS, variant: "ar-MSA" }, en), /Arabic correctness/);
+  assert.match(buildRewriteSystem({ ...DEFAULT_OPTIONS, mode: "marketing" }, en), /copywriter/);
+});
+
+test("polish that merges paragraphs is rejected", () => {
+  const before = "Moreover, the first point is robust.\n\nFurthermore, the second point is seamless.";
+  const w = styleIssues(before, "en").weight;
+  assert.equal(acceptPolish(before, "The first point holds. The second one works without friction.", [], w, "en", new Map()), false);
+  assert.equal(acceptPolish(before, "The first point holds.\n\nThe second one works without friction.", [], w, "en", new Map()), true);
+});

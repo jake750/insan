@@ -2,7 +2,7 @@
 
 Insan rewrites stiff or AI-sounding text so it reads like a person wrote it, and keeps the meaning exactly. It runs in your browser with your own model key: Claude by default, or any OpenAI-compatible endpoint, including a local model through Ollama.
 
-- **Multi-pass engine.** It reads the text first (language, register, domain, protected items), then rewrites it at sentence and paragraph level, then checks the meaning and repairs any drift automatically.
+- **Multi-pass engine.** It reads the text first (language, register, domain, protected items), rewrites it at sentence and paragraph level, checks the meaning and repairs any drift, then polishes away any AI tells a local check still finds.
 - **Private by design.** No accounts, analytics, trackers, cookies, third-party fonts or CDNs. Your key and history stay in your browser. Panic wipe erases everything in one click.
 - **Three languages, full RTL.** English (US/UK), French (France or Maghreb usage) and Arabic (MSA, or with a Tunisian, Egyptian or Gulf flavour). The interface is available in English, French and Arabic.
 
@@ -84,6 +84,7 @@ Keep *Turn off model "thinking"* on for reasoning models like Qwen: it is much f
 3. Optional environment variables for the proxy:
    - `INSAN_PROXY_DISABLED=1` turns the proxy off completely.
    - `INSAN_PROXY_HOSTS=api.anthropic.com,api.openai.com` restricts which hosts it may reach. This is the allowlist, and only HTTPS hosts are allowed.
+   - `INSAN_PROXY_RPM=60` sets the per-IP request limit per minute (default 60). Bodies over 2 MB are refused.
 
 Any Node host works too: `npm run build && npm start`.
 
@@ -95,7 +96,8 @@ Any Node host works too: `npm run build && npm start`.
 src/
   engine/
     prompts.ts      ← every prompt, one guide per mode, AI-pattern lists. Tune here.
-    pipeline.ts     ← analyse → chunk → rewrite (streamed) → verify → repair
+    pipeline.ts     ← analyse → chunk → rewrite (streamed) → verify → repair → polish
+    style.ts        ← local style check that names leftover tells for the polish pass
     text.ts         ← language detection, protected items, paragraph-aware chunking
     providers.ts    ← Anthropic SDK (browser) + OpenAI-compatible streaming, error mapping
     doc.ts          ← sentence segments aligned to originals (accept / reject / undo)
@@ -111,12 +113,15 @@ src/
 2. **Rewrite.** The text is split at paragraph boundaries. Fenced code stays whole and headings travel with the paragraph that follows them. Chunks are about 900 words for Claude and 450 for small local models. Each chunk gets the same system prompt plus the last two rewritten paragraphs, so tone and terms stay consistent. Output streams live.
 3. **Verify.** A local check confirms that every number (Arabic-Indic digits included), quotation, locked term and placeholder survived. A second model pass compares original and rewrite and reports anything *added*, *lost*, *changed* or *protected*.
 4. **Repair.** If any issue is found, a minimal-edit repair pass fixes only those points. Whatever the local check still finds missing after repair is shown to you, never hidden.
+5. **Polish.** Runs last, so the repair pass can't bring tells back. A local check (`src/engine/style.ts`, no network) looks at each rewritten part for stock phrases, stock connectors at the start of sentences, flat sentence rhythm (lengths that barely vary) and two sentences in a row starting with the same word. If it finds any, a short model call (at most two rounds) gets the exact list ("replace \"Moreover\"", "sentences are 15, 16, 15, 17 words: vary them") and fixes only those. The polished version is kept only if it keeps every placeholder, stays within 75–135% of the length loses no protected item and has fewer tells; otherwise the first rewrite stays. Turn it off in Tune → *Style polish*.
 
 ### Tuning the prompts
 
 Open `src/engine/prompts.ts`:
 
-- `MODE_GUIDES`: one paragraph per mode (12 modes).
+- `MODE_GUIDES`: one paragraph per mode (14 modes).
+- `ARABIC_RULES`: MSA grammar, spelling and punctuation rules added whenever the output is Arabic (not for casual dialect).
+- `POLISH_SYSTEM`: the targeted fix-up pass.
 - `INTENSITY`: what each step of the Light touch → Full rewrite slider allows.
 - `AI_PATTERNS`: machine-writing tells per language. Add the phrases you keep seeing.
 - `buildRewriteSystem()`: assembles all of the above with the user's options.
@@ -127,7 +132,7 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 ## Features
 
 **Options**
-- 12 modes: Standard, Fluent, Academic, Formal, Casual, Creative, Simple, Expand, Shorten, Persuasive, Story, Technical.
+- 14 modes: Standard, Fluent, Academic, Formal, Casual, Creative, Simple, Expand, Shorten, Persuasive, Story, Technical, Marketing, Conversational.
 - Intensity slider; tone sliders for formality, warmth, confidence and emotion; reading level from grade 6 to expert.
 - Audience field; *Write like this sample* (voice imitation).
 - Language variant: EN US/UK, FR France/Maghreb, AR MSA/Tunisian/Egyptian/Gulf.
@@ -142,7 +147,8 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 - Undo/redo for every change; edit the whole output by hand.
 - Word and character counts, reading time, length change in %.
 - Drag-and-drop import of .txt, .md, .docx and .pdf. Export as copy, .txt, .md, .docx (author, app and date metadata removed) or PDF (through the browser's print engine, which gives correct Arabic shaping and RTL).
-- Optional local history in IndexedDB, with search, delete and *Delete all history*.
+- **Regenerate** next to Copy rewrites the original again for a different version (the previous one stays reachable with Undo).
+- Optional local history in IndexedDB (off until you turn it on in Settings), the 100 most recent conversions with their AI score before → after, search, delete and *Delete all history*.
 - Command palette (`Ctrl/⌘ K`), dark/light/system theme, interface in EN/FR/AR, phone layout (see *On your phone*), installable PWA.
 
 **Naturalness report** (local, shown before and after)
@@ -157,7 +163,7 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 
 Insan shows how AI-like a text reads, for the input and for the rewrite, as a percentage in three bands: **0–30 low**, **31–60 mixed**, **61–100 high**. It never claims certainty: a one-line disclaimer is always visible, and texts under 50 words are marked *unreliable*.
 
-**Where you see it.** A gauge card under the editor (desktop) or a compact pill above the editor (phone) that opens the full report. With both texts scored it shows *Input 86% → Output 32%* with the change. Sentences are shaded by score (stronger shade = more AI-like); hover or long-press a sentence to see its score and the reason. The report lists every source and signal with a plain-language meaning and a tip, and has a threshold slider, the list of flagged sentences, **Re-humanize flagged sentences** (rewrites only sentences above the threshold, skips locked ones, then re-scores) and **Export report** (PDF with the text). *Auto-check after every rewrite* is in Settings → AI score. `Ctrl/⌘ ⇧ A` runs a check.
+**Where you see it.** A card under the editor (desktop) or a compact pill with a small ring above the editor (phone) that opens the full report. With both texts scored the card shows two rings, *Input 86%* and *Output 32%*, with the change between them. Sentences are shaded by score (stronger shade = more AI-like); hover or long-press a sentence to see its score and the reason. The report lists every source and signal with a plain-language meaning and a tip, and has a threshold slider, the list of flagged sentences, **Re-humanize flagged sentences** (rewrites only sentences above the threshold, skips locked ones, then re-scores) and **Export report** (PDF with the text). *Auto-check after every rewrite* is in Settings → AI score. `Ctrl/⌘ ⇧ A` runs a check.
 
 **Sources.** The score is the weighted average of the sources that answered. Failed sources are shown, never hidden.
 

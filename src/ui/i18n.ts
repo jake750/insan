@@ -32,6 +32,7 @@ const en = {
   stageRewriting: "Rewriting",
   stageVerifying: "Checking meaning",
   stageRepairing: "Fixing drift",
+  stagePolishing: "Polishing style",
   stageDone: "Done",
   part: "part",
   of: "of",
@@ -80,6 +81,9 @@ const en = {
   bannedPh: "One per line",
   keepFormatting: "Keep formatting (headings, lists, line breaks)",
   verifyPass: "Meaning check (second pass)",
+  polishPass: "Style polish (fixes leftover AI phrasing and flat rhythm)",
+  regenerateAll: "Regenerate",
+  regenerateHint: "Rewrite the original again for a different version",
   presets: "Presets",
   savePreset: "Save current settings",
   presetName: "Preset name",
@@ -228,6 +232,7 @@ const fr: Strings = {
   stageRewriting: "Réécriture",
   stageVerifying: "Vérification du sens",
   stageRepairing: "Correction des écarts",
+  stagePolishing: "Finition du style",
   stageDone: "Terminé",
   part: "partie",
   of: "sur",
@@ -275,6 +280,9 @@ const fr: Strings = {
   bannedPh: "Un par ligne",
   keepFormatting: "Garder la mise en forme (titres, listes, retours à la ligne)",
   verifyPass: "Vérification du sens (deuxième passe)",
+  polishPass: "Finition du style (corrige les tics IA restants et le rythme plat)",
+  regenerateAll: "Régénérer",
+  regenerateHint: "Réécrire l'original pour obtenir une autre version",
   presets: "Préréglages",
   savePreset: "Enregistrer ces réglages",
   presetName: "Nom du préréglage",
@@ -416,6 +424,7 @@ const ar: Strings = {
   stageRewriting: "إعادة الصياغة",
   stageVerifying: "التحقق من المعنى",
   stageRepairing: "تصحيح الانحراف",
+  stagePolishing: "تنقيح الأسلوب",
   stageDone: "تم",
   part: "جزء",
   of: "من",
@@ -463,6 +472,9 @@ const ar: Strings = {
   bannedPh: "واحدة في كل سطر",
   keepFormatting: "حافظ على التنسيق (العناوين، القوائم، الأسطر)",
   verifyPass: "فحص المعنى (مرور ثانٍ)",
+  polishPass: "تنقيح الأسلوب (يزيل بقايا العبارات الآلية والإيقاع الرتيب)",
+  regenerateAll: "إعادة التوليد",
+  regenerateHint: "أعد صياغة الأصل للحصول على نسخة مختلفة",
   presets: "الإعدادات المحفوظة",
   savePreset: "احفظ الإعدادات الحالية",
   presetName: "اسم الإعداد",
@@ -578,15 +590,15 @@ const ar: Strings = {
 export const STRINGS: Record<UILang, Strings> = { en, fr, ar };
 
 export const MODE_LABELS: Record<UILang, Record<Mode, string>> = {
-  en: { standard: "Standard", fluent: "Fluent", academic: "Academic", formal: "Formal", casual: "Casual", creative: "Creative", simple: "Simple", expand: "Expand", shorten: "Shorten", persuasive: "Persuasive", storytelling: "Story", technical: "Technical" },
-  fr: { standard: "Standard", fluent: "Fluide", academic: "Académique", formal: "Formel", casual: "Décontracté", creative: "Créatif", simple: "Simple", expand: "Développer", shorten: "Raccourcir", persuasive: "Persuasif", storytelling: "Récit", technical: "Technique" },
-  ar: { standard: "قياسي", fluent: "سلس", academic: "أكاديمي", formal: "رسمي", casual: "عفوي", creative: "إبداعي", simple: "مبسّط", expand: "توسيع", shorten: "اختصار", persuasive: "إقناعي", storytelling: "قصصي", technical: "تقني" },
+  en: { standard: "Standard", fluent: "Fluent", academic: "Academic", formal: "Formal", casual: "Casual", creative: "Creative", simple: "Simple", expand: "Expand", shorten: "Shorten", persuasive: "Persuasive", storytelling: "Story", technical: "Technical", marketing: "Marketing", conversational: "Conversational" },
+  fr: { standard: "Standard", fluent: "Fluide", academic: "Académique", formal: "Formel", casual: "Décontracté", creative: "Créatif", simple: "Simple", expand: "Développer", shorten: "Raccourcir", persuasive: "Persuasif", storytelling: "Récit", technical: "Technique", marketing: "Marketing", conversational: "Conversationnel" },
+  ar: { standard: "قياسي", fluent: "سلس", academic: "أكاديمي", formal: "رسمي", casual: "عفوي", creative: "إبداعي", simple: "مبسّط", expand: "توسيع", shorten: "اختصار", persuasive: "إقناعي", storytelling: "قصصي", technical: "تقني", marketing: "تسويقي", conversational: "حواري" },
 };
 
 export const MODE_HINTS: Record<UILang, Record<Mode, string>> = {
-  en: { standard: "Natural, same register", fluent: "Smoother flow, same structure", academic: "Precise, measured, cited", formal: "Professional and direct", casual: "Relaxed, conversational", creative: "Vivid, bold rhythm", simple: "Plain language", expand: "Longer, more developed", shorten: "Tighter, same facts", persuasive: "Makes the case land", storytelling: "Narrative momentum", technical: "Exact, engineer-style" },
-  fr: { standard: "Naturel, même registre", fluent: "Plus fluide, même structure", academic: "Précis, nuancé, sourcé", formal: "Professionnel et direct", casual: "Détendu, conversationnel", creative: "Imagé, rythme marqué", simple: "Langage clair", expand: "Plus développé", shorten: "Plus concis, mêmes faits", persuasive: "Plus convaincant", storytelling: "Élan narratif", technical: "Exact, style ingénieur" },
-  ar: { standard: "طبيعي بنفس المستوى", fluent: "انسيابية أكبر بنفس البنية", academic: "دقيق ومتّزن وموثّق", formal: "مهني ومباشر", casual: "مريح وحواري", creative: "حيّ وإيقاع جريء", simple: "لغة واضحة", expand: "أطول وأكثر تفصيلاً", shorten: "أوجز بنفس الحقائق", persuasive: "أكثر إقناعاً", storytelling: "زخم سردي", technical: "دقيق بأسلوب هندسي" },
+  en: { standard: "Natural, same register", fluent: "Smoother flow, same structure", academic: "Precise, measured, cited", formal: "Professional and direct", casual: "Relaxed, conversational", creative: "Vivid, bold rhythm", simple: "Plain language", expand: "Longer, more developed", shorten: "Tighter, same facts", persuasive: "Makes the case land", storytelling: "Narrative momentum", technical: "Exact, engineer-style", marketing: "Benefit-led brand copy", conversational: "Like explaining it out loud" },
+  fr: { standard: "Naturel, même registre", fluent: "Plus fluide, même structure", academic: "Précis, nuancé, sourcé", formal: "Professionnel et direct", casual: "Détendu, conversationnel", creative: "Imagé, rythme marqué", simple: "Langage clair", expand: "Plus développé", shorten: "Plus concis, mêmes faits", persuasive: "Plus convaincant", storytelling: "Élan narratif", technical: "Exact, style ingénieur", marketing: "Texte de marque axé bénéfices", conversational: "Comme expliqué à voix haute" },
+  ar: { standard: "طبيعي بنفس المستوى", fluent: "انسيابية أكبر بنفس البنية", academic: "دقيق ومتّزن وموثّق", formal: "مهني ومباشر", casual: "مريح وحواري", creative: "حيّ وإيقاع جريء", simple: "لغة واضحة", expand: "أطول وأكثر تفصيلاً", shorten: "أوجز بنفس الحقائق", persuasive: "أكثر إقناعاً", storytelling: "زخم سردي", technical: "دقيق بأسلوب هندسي", marketing: "نص تسويقي يبرز الفائدة", conversational: "كأنك تشرحه بصوت مسموع" },
 };
 
 export const VARIANT_LABELS: Record<UILang, Record<Variant, string>> = {

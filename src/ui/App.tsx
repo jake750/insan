@@ -312,7 +312,7 @@ export default function App() {
       const left = res.chunks.flatMap((c) => c.issues.map((i) => i.detail));
       setWarnings(left);
       setVerdict(left.length ? "warn" : res.chunks.some((c) => c.repaired) ? "repaired" : options.verify ? "ok" : null);
-      if (useStore.getState().saveHistory) addHistory({ input, output: res.output, mode: options.mode, lang }).catch(() => {});
+      if (useStore.getState().saveHistory) addHistory({ input, output: res.output, mode: options.mode, lang, scoreIn: detectLocal(input, lang).score, scoreOut: detectLocal(res.output, lang).score }).catch(() => {});
     } catch (e) {
       const err = e instanceof EngineError ? e : new EngineError("unknown", e instanceof Error ? e.message : String(e));
       if (streamRef.current.trim()) commit(buildDoc(input, streamRef.current)); // keep what was written
@@ -599,6 +599,7 @@ export default function App() {
   const setUi = (l: UILang) => store.set({ uiLang: l });
   const commands: Command[] = [
     { id: "run", label: t.humanize, hint: `${MOD} ↵`, run: humanize, disabled: busy || !input.trim() },
+    { id: "regen", label: t.regenerateAll, run: humanize, disabled: busy || !doc || !input.trim() },
     { id: "stop", label: t.stop, hint: "Esc", run: stop, disabled: !busy },
     { id: "diff", label: view === "diff" ? t.clean : t.diff, hint: `${MOD} ⇧ D`, run: () => setView((v) => (v === "diff" ? "clean" : "diff")), disabled: !doc },
     { id: "copy", label: t.copy, hint: `${MOD} ⇧ C`, run: copyOut, disabled: !doc },
@@ -656,11 +657,12 @@ export default function App() {
   const stageLabel: Record<PipelineStage, string> = {
     analyzing: t.stageAnalyzing,
     rewriting: t.stageRewriting,
+    polishing: t.stagePolishing,
     verifying: t.stageVerifying,
     repairing: t.stageRepairing,
     done: t.stageDone,
   };
-  const stageOrder: PipelineStage[] = ["analyzing", "rewriting", "verifying"];
+  const stageOrder: PipelineStage[] = ["analyzing", "rewriting", "verifying", "polishing"];
 
   // Render only after settings are read from this browser (no server/client mismatch, no flash).
   if (!hydrated) return <div className="shell" aria-busy="true" />;
@@ -827,10 +829,10 @@ export default function App() {
           {busy && run && (
             <>
               <div className="progress" aria-hidden="true">
-                <i style={{ width: `${Math.min(100, ((run.chunk + (run.stage === "verifying" || run.stage === "repairing" ? 0.8 : 0.3)) / Math.max(1, run.total)) * 100)}%` }} />
+                <i style={{ width: `${Math.min(100, ((run.chunk + (run.stage === "verifying" || run.stage === "repairing" ? 0.7 : run.stage === "polishing" ? 0.92 : 0.3)) / Math.max(1, run.total)) * 100)}%` }} />
               </div>
               <div className="stages" style={{ padding: "8px 16px 0" }} role="status">
-                {stageOrder.filter((s) => s !== "verifying" || options.verify).map((s) => {
+                {stageOrder.filter((s) => (s !== "verifying" || options.verify) && (s !== "polishing" || options.polish)).map((s) => {
                   const cur = run.stage === "repairing" ? "verifying" : run.stage;
                   const state = s === cur ? "active" : stageOrder.indexOf(s) < stageOrder.indexOf(cur as PipelineStage) ? "done" : "todo";
                   return (
@@ -914,6 +916,11 @@ export default function App() {
                 </>
               )}
             </div>
+            {doc && !busy && (
+              <button className="btn" onClick={humanize} disabled={!input.trim()} title={t.regenerateHint}>
+                <IconRedo size={16} /> <span className="hide-sm">{t.regenerateAll}</span>
+              </button>
+            )}
             <button className="btn" onClick={copyOut} disabled={!doc || busy}>
               <IconCopy size={16} /> {t.copy}
             </button>

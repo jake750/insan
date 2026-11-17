@@ -17,6 +17,8 @@ export const AI_PHRASES: Record<Lang, string[]> = {
     "foster(?:s|ing)?", "elevate", "embark(?:s|ing)? on", "underscor(?:e|es|ed|ing)", "showcas(?:e|es|ed|ing)", "a myriad of", "myriad",
     "not only .{3,60}? but also", "it(?:'s| is) not just .{3,40}?, it(?:'s| is)", "in essence", "at the end of the day", "the future looks bright",
     "stands? as a", "serves? as a (?:testament|reminder)", "dive (?:deep|deeper) into", "a deep dive", "rich (?:history|tapestry)", "vibrant", "bustling", "meticulous(?:ly)?",
+    "pav(?:e|es|ed|ing) the way", "sh(?:ed|eds|edding) (?:new )?light on", "a (?:wide|broad|diverse) (?:range|array|variety) of", "(?:its|their|the) full potential",
+    "in an (?:era|age) (?:of|where)", "it goes beyond", "not merely", "in the ever", "a crucial (?:step|component|aspect)",
   ],
   fr: [
     "dans un monde en (?:constante |perpétuelle )?évolution", "à l'ère du numérique", "il est (?:important|essentiel|crucial) de (?:noter|souligner|rappeler)",
@@ -27,7 +29,8 @@ export const AI_PHRASES: Record<Lang, string[]> = {
   ar: [
     "تجدر الإشارة إلى", "(?:و)?من الجدير بالذكر", "جدير بالذكر", "لا يخفى على أحد", "في عالمنا (?:المتسارع|اليوم|المعاصر)", "في عصرنا (?:الحالي|الحاضر|الراهن)",
     "في ظل", "يلعب دور(?:اً|ا)", "تلعب دور(?:اً|ا)", "دور(?:اً|ا) (?:محوري(?:اً|ا)|حيوي(?:اً|ا)|بارز(?:اً|ا))", "بالإضافة إلى ذلك", "علاوة على ذلك", "فضلاً عن ذلك",
-    "ليس فقط .{2,50}? بل (?:أيضاً|أيضا)", "بشكل كبير", "بشكل عام", "ختام(?:اً|ا)،? يمكن القول", "في نهاية المطاف", "في نهاية اليوم", "على الجانب الآخر", "نسيج", "آفاق(?:اً|ا)? واسعة", "يُعدّ|يعد من أهم",
+    "ليس فقط .{2,50}? بل (?:أيضاً|أيضا)", "بشكل كبير", "بشكل عام", "ختام(?:اً|ا)،? يمكن القول", "في نهاية المطاف", "في نهاية اليوم", "على الجانب الآخر", "نسيج", "آفاق(?:اً|ا)? واسعة", "يُعدّ من أهم", "يعد من أهم",
+    "في عصرنا المتسارع", "عالمنا المتسارع", "ضرورة حتمية", "لم (?:يعد|تعد) (?:مجرد )?خيار(?:اً|ا)", "حجر الزاوية", "مما لا شك فيه", "لا شك أن", "في هذا السياق", "يمكن القول (?:إن|بأن)", "على حد سواء",
   ],
 };
 

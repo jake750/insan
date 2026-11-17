@@ -1,6 +1,8 @@
 // The multi-pass pipeline: analyse → rewrite (chunked, streamed) → verify → repair.
 import {
   ANALYZE_SYSTEM,
+  POLISH_SYSTEM,
+  buildPolishUser,
   REPAIR_SYSTEM,
   VERIFY_SYSTEM,
   buildAlternativesSystem,
@@ -12,11 +14,13 @@ import {
   buildVerifyUser,
 } from "./prompts";
 import { makeChat, parseJsonReply, stripThinking, type Chat } from "./providers";
+import { styleIssues } from "./style";
 import { chunkBlocks, detectLang, missingItems, mustKeep, protect, splitBlocks, unprotect, wordCount } from "./text";
 import {
   EngineError,
   type ChunkResult,
   type DocBrief,
+  type Lang,
   type PipelineEvent,
   type ProviderConfig,
   type RewriteOptions,
@@ -37,7 +41,7 @@ interface RunArgs {
   onEvent?: (e: PipelineEvent) => void;
 }
 
-const LENGTH_FACTOR: Partial<Record<RewriteOptions["mode"], number>> = { expand: 2, storytelling: 1.5, creative: 1.3, shorten: 0.8 };
+const LENGTH_FACTOR: Partial<Record<RewriteOptions["mode"], number>> = { expand: 2, storytelling: 1.5, creative: 1.3, conversational: 1.2, shorten: 0.8 };
 
 function tokenBudget(words: number, provider: ProviderConfig, mode: RewriteOptions["mode"]): number {
   const est = Math.ceil(words * 2.6 * (LENGTH_FACTOR[mode] ?? 1.15)) + 400;
@@ -51,6 +55,15 @@ function cleanRewrite(s: string): string {
   t = t.replace(/^<\/?(source|rewrite|output)>\s*/i, "").replace(/\s*<\/(source|rewrite|output)>$/i, "");
   t = t.replace(/^(here is|here's|voici|إليك)[^\n]{0,80}:\s*\n+/i, "");
   return t.trim();
+}
+
+/** Keep a polished chunk only if it kept every placeholder and paragraph, did not shrink or balloon, and has fewer tells. */
+export function acceptPolish(before: string, after: string, placeholders: string[], beforeWeight: number, lang: Lang, map: Map<string, string>, keepParagraphs = true): boolean {
+  if (placeholders.some((p) => !after.includes(p))) return false;
+  if (keepParagraphs && splitBlocks(after).length !== splitBlocks(before).length) return false;
+  const ratio = wordCount(after) / Math.max(1, wordCount(before));
+  if (ratio < 0.75 || ratio > 1.35) return false;
+  return styleIssues(unprotect(after, map), lang).weight < beforeWeight;
 }
 
 async function analyze(chat: Chat, text: string, signal?: AbortSignal): Promise<Partial<DocBrief> | null> {
@@ -177,6 +190,35 @@ export async function runPipeline({ input, options, provider, signal, onEvent }:
         ...localMissing().map((m) => ({ kind: "protected" as const, detail: `"${m.slice(0, 80)}" may be missing` })),
         ...paraIssue().map((i) => ({ ...i, detail: "Paragraph structure differs from the source" })),
       ];
+    }
+
+    // 4 — Polish last, so nothing undoes it: name the tells that survived and fix only those
+    // (up to two rounds; a round is kept only if it loses no protected item and lowers the tells)
+    if (options.polish) {
+      for (let round = 0; round < 2; round++) {
+        const style = styleIssues(unprotect(rewritten, prot.map), lang);
+        if (!style.issues.length) break;
+        emit({ stage: "polishing", chunk: i, totalChunks: chunks.length, text: show(rewritten) });
+        const polished = cleanRewrite(
+          await chat({
+            system: POLISH_SYSTEM,
+            user: buildPolishUser(rewritten, style.issues),
+            maxTokens: tokenBudget(wordCount(chunk), provider, options.mode),
+            signal,
+          }).catch((e) => {
+            if (e instanceof EngineError && (e.code === "aborted" || e.code === "auth")) throw e;
+            return ""; // polishing is best-effort
+          }),
+        );
+        if (!polished || !acceptPolish(rewritten, polished, placeholders, style.weight, lang, prot.map, options.keepFormatting)) break;
+        const before = localMissing().length;
+        const prev = rewritten;
+        rewritten = polished;
+        if (localMissing().length > before) {
+          rewritten = prev;
+          break;
+        }
+      }
     }
 
     done.push(rewritten);

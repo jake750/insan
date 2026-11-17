@@ -143,6 +143,10 @@ export function TunePanel({ t, ui, onClose, embedded }: { t: Strings; ui: UILang
           <input type="checkbox" checked={options.verify} onChange={(e) => setOptions({ verify: e.target.checked })} />
           <span>{t.verifyPass}</span>
         </label>
+        <label className="check">
+          <input type="checkbox" checked={options.polish} onChange={(e) => setOptions({ polish: e.target.checked })} />
+          <span>{t.polishPass}</span>
+        </label>
 
         <section>
           <h3>{t.presets}</h3>

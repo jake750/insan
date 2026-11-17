@@ -66,7 +66,7 @@ export function Gauge({ score, band, size = 132, label, bandLabel, loading, mute
       data-band={band ?? "none"}
       data-loading={loading || undefined}
       data-muted={muted || undefined}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, ["--g" as string]: `${size}px` }}
       role="img"
       aria-label={score === null ? label : `${label}: ${Math.round(score)}%${bandLabel ? `, ${bandLabel}` : ""}`}
     >

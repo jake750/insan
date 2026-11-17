@@ -5,6 +5,8 @@
  * - Stores nothing, logs nothing, sets no cookies.
  * - Only HTTPS targets on the allowlist are reachable (no open proxy / SSRF).
  *   Configure with INSAN_PROXY_HOSTS="api.anthropic.com,api.openai.com,…"; INSAN_PROXY_DISABLED=1 turns it off.
+ * - Per-IP rate limit (INSAN_PROXY_RPM, default 60 requests a minute) and a 2 MB body cap, so a public
+ *   deployment can't be used as a free relay. Counters live in memory only and hold no request content.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +21,23 @@ const ALLOWED = new Set(
     .map((h) => h.trim().toLowerCase())
     .filter(Boolean),
 );
+
+const RPM = Math.max(1, Number(process.env.INSAN_PROXY_RPM) || 60);
+const MAX_BODY = 2 * 1024 * 1024;
+const hits = new Map<string, { n: number; reset: number }>();
+
+/** Fixed one-minute window per client address. Returns seconds to wait, or 0 when allowed. */
+function rateLimit(ip: string, now = Date.now()): number {
+  if (hits.size > 10_000) for (const [k, v] of hits) if (v.reset <= now) hits.delete(k);
+  const h = hits.get(ip);
+  if (!h || h.reset <= now) {
+    hits.set(ip, { n: 1, reset: now + 60_000 });
+    return 0;
+  }
+  if (h.n >= RPM) return Math.ceil((h.reset - now) / 1000);
+  h.n++;
+  return 0;
+}
 
 // Request headers worth forwarding; everything else (cookies, client IP, user agent…) is dropped.
 const PASS = ["content-type", "authorization", "x-api-key", "anthropic-version", "anthropic-beta", "accept", "x-oai-api-key"];
@@ -35,6 +54,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ path: s
   if (base.protocol !== "https:" || !ALLOWED.has(base.hostname.toLowerCase())) {
     return new Response("Target not allowed", { status: 403 });
   }
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
+  const wait = rateLimit(ip);
+  if (wait) {
+    return new Response(JSON.stringify({ error: { message: "Too many requests through the proxy. Wait a moment." } }), {
+      status: 429,
+      headers: { "content-type": "application/json", "retry-after": String(wait) },
+    });
+  }
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY) return new Response("Request too large", { status: 413 });
   const { path } = await params;
   const url = `${base.origin}${base.pathname.replace(/\/$/, "")}/${path.map(encodeURIComponent).join("/")}`;
   const headers = new Headers();
