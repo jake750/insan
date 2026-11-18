@@ -51,6 +51,10 @@ Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
+[InstallDelete]
+; on an update, replace the app files cleanly (the running server is stopped first, see PrepareToInstall)
+Type: filesandordirs; Name: "{app}\app"
+
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
@@ -62,11 +66,15 @@ Name: "{autodesktop}\Insan"; Filename: "{#PS}"; Parameters: "-NoProfile -Executi
 Filename: "{#PS}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\launch.ps1"""; Description: "{cm:LaunchProgram,Insan}"; Flags: postinstall nowait skipifsilent runhidden
 
 [UninstallRun]
-Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM InsanServer.exe"; Flags: runhidden; RunOnceId: "StopInsan"
+; stop the server and close Insan's own app windows so their files can be removed
+Filename: "{#PS}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\stop.ps1"" -Windows"; Flags: runhidden waituntilterminated; RunOnceId: "StopInsan"
 
 [UninstallDelete]
-; the app window's own browser profile (settings, key and history)
+; files the app writes while running: the server's cache and the app window's own browser profile
+; (settings, key, history). Only these two folders, never the whole install folder.
+Type: filesandordirs; Name: "{app}\app"
 Type: filesandordirs; Name: "{app}\profile"
+Type: dirifempty; Name: "{app}"
 
 [Code]
 // stop a running copy before files are replaced on an update
@@ -76,4 +84,15 @@ var
 begin
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM InsanServer.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Result := '';
+end;
+
+// second pass at the very end, in case the browser held a profile file a moment longer
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    DelTree(ExpandConstant('{app}\profile'), True, True, True);
+    DelTree(ExpandConstant('{app}\app'), True, True, True);
+    RemoveDir(ExpandConstant('{app}'));
+  end;
 end;

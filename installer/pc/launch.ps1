@@ -3,9 +3,10 @@
 param([int]$Port = 3219)
 $ProgressPreference = "SilentlyContinue"
 $Here = $PSScriptRoot
-$Url = "http://localhost:$Port/"
+# not "localhost": it can resolve to IPv6 first and hang, while the server listens on IPv4 only
+$Url = "http://127.0.0.1:$Port/"
 
-function Up { try { (Invoke-WebRequest $Url -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } catch { $false } }
+function Up { try { (Invoke-WebRequest $Url -UseBasicParsing -TimeoutSec 1).StatusCode -eq 200 } catch { $false } }
 
 if (-not (Up)) {
   $env:PORT = "$Port"
