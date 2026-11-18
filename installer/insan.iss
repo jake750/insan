@@ -86,13 +86,21 @@ begin
   Result := '';
 end;
 
-// second pass at the very end, in case the browser held a profile file a moment longer
+// second pass at the very end: the browser can keep writing to its profile for a few seconds after
+// it is stopped, so retry for up to 10 s
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  I: Integer;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    DelTree(ExpandConstant('{app}\profile'), True, True, True);
-    DelTree(ExpandConstant('{app}\app'), True, True, True);
+    for I := 1 to 10 do
+    begin
+      DelTree(ExpandConstant('{app}\profile'), True, True, True);
+      DelTree(ExpandConstant('{app}\app'), True, True, True);
+      if not DirExists(ExpandConstant('{app}\profile')) and not DirExists(ExpandConstant('{app}\app')) then Break;
+      Sleep(1000);
+    end;
     RemoveDir(ExpandConstant('{app}'));
   end;
 end;
