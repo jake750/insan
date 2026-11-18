@@ -91,6 +91,7 @@ end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   I: Integer;
+  Script: String;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
@@ -101,6 +102,21 @@ begin
       if not DirExists(ExpandConstant('{app}\profile')) and not DirExists(ExpandConstant('{app}\app')) then Break;
       Sleep(1000);
     end;
-    RemoveDir(ExpandConstant('{app}'));
+    if not RemoveDir(ExpandConstant('{app}')) and DirExists(ExpandConstant('{app}\profile')) then
+    begin
+      // still locked (e.g. a virus scan of files the browser just wrote): finish in the background
+      // with a throwaway script that gets the folder as an argument and deletes itself
+      Script := AddBackslash(GetTempDir()) + 'insan-cleanup.ps1';
+      SaveStringToFile(Script,
+        'param([string]$D)' + #13#10 +
+        'for ($i = 0; $i -lt 30 -and (Test-Path -LiteralPath (Join-Path $D "profile")); $i++) {' + #13#10 +
+        '  Start-Sleep -Seconds 2' + #13#10 +
+        '  Remove-Item -LiteralPath (Join-Path $D "profile"), (Join-Path $D "app") -Recurse -Force -ErrorAction SilentlyContinue' + #13#10 +
+        '}' + #13#10 +
+        'if (-not (Get-ChildItem -LiteralPath $D -Force -ErrorAction SilentlyContinue)) { Remove-Item -LiteralPath $D -Force -ErrorAction SilentlyContinue }' + #13#10 +
+        'Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue' + #13#10, False);
+      Exec(ExpandConstant('{#PS}'), '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + Script + '" "' + ExpandConstant('{app}') + '"',
+        '', SW_HIDE, ewNoWait, I);
+    end;
   end;
 end;
