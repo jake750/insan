@@ -12,9 +12,13 @@ Insan rewrites stiff or AI-sounding text so it reads like a person wrote it, and
 
 ## Install (easiest)
 
-You need [Node.js](https://nodejs.org) 20.9 or newer. On Windows the installer offers to install it for you with `winget`.
+**Windows (recommended):** download **`Insan-Setup-X.Y.Z.exe`** from the [latest release](https://github.com/jake750/insan/releases/latest) and run it. No Node.js, no internet and no admin rights needed. It installs into `%LOCALAPPDATA%\Programs\Insan`, adds Insan to the Start Menu (and the Desktop if you tick the box), and opens it in its own window (Edge, Chrome or Brave app mode; otherwise your default browser). It runs a small server on this computer only (http://localhost:3219). Your key, settings and history stay in that window's own profile inside the install folder, and *Uninstall* in Windows Settings → Apps removes them with the app. Windows SmartScreen may warn about an unknown publisher because the setup isn't code-signed: choose *More info → Run anyway*.
 
-**Windows:** unzip, then double-click **`install-windows.cmd`**. It installs into `%LOCALAPPDATA%\Insan`, builds the app, and adds an **Insan** icon to the Desktop and the Start Menu (with *Stop Insan* and *Uninstall Insan* next to it). No admin rights needed.
+Build it yourself with `node scripts/build-pc.mjs` (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php) for the `.exe`; without it you get the ready folder in `dist-pc/Insan`).
+
+**From the source zip** (`Insan-X.Y.Z-pc.zip`) you need [Node.js](https://nodejs.org) 20.9 or newer. On Windows the installer offers to install it for you with `winget`.
+
+**Windows, from the zip:** unzip, then double-click **`install-windows.cmd`**. It installs into `%LOCALAPPDATA%\Insan`, builds the app, and adds an **Insan** icon to the Desktop and the Start Menu (with *Stop Insan* and *Uninstall Insan* next to it). No admin rights needed.
 
 **macOS / Linux:** unzip, then run `bash install-mac-linux.sh`. It installs into `~/.local/share/insan` and adds an `insan` command (`insan stop` stops it), plus a menu entry on Linux or `~/Applications/Insan.command` on macOS.
 

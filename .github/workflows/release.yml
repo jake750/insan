@@ -3,7 +3,8 @@ name: Release
 # Runs when a commit that changes "version" in package.json lands on main (from `npm run release`):
 # if no vX.Y.Z tag exists yet, it creates the GitHub release and tag, then attaches
 #   - Insan-X.Y.Z-android.apk / .aab  (signed when the ANDROID_* secrets are set, otherwise a debug APK)
-#   - Insan-X.Y.Z-pc.zip              (unzip, then double-click install-windows.cmd, or run install-mac-linux.sh)
+#   - Insan-Setup-X.Y.Z.exe           (Windows setup: no Node.js or internet needed, per-user, with uninstaller)
+#   - Insan-X.Y.Z-pc.zip              (source + one-click installers, mainly for macOS / Linux)
 # Pushing a vX.Y.Z tag by hand or running it from the Actions tab works too.
 
 on:
@@ -134,3 +135,28 @@ jobs:
         run: |
           git archive --format=zip --prefix=Insan/ -o "Insan-$VERSION-pc.zip" HEAD -- . ':!android' ':!ios' ':!docs/superpowers'
           gh release upload "v$VERSION" "Insan-$VERSION-pc.zip" --clobber
+
+  # Windows setup .exe: standalone build + the official Node.js runtime, packed with Inno Setup.
+  windows:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --silent
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Build the setup
+        run: node scripts/build-pc.mjs
+      - name: Attach to the release
+        shell: bash
+        run: gh release upload "v$VERSION" "dist-pc/Insan-Setup-$VERSION.exe" --clobber

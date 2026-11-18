@@ -25,6 +25,8 @@ const config: NextConfig = native
   // route.web.ts files (the stateless proxy) exist only in the web build; the native export skips them
   pageExtensions: ["tsx", "ts", "web.ts"],
   poweredByHeader: false,
+  // STANDALONE=1: self-contained server for the Windows setup (scripts/build-pc.mjs), no node_modules needed
+  ...(process.env.STANDALONE === "1" ? { output: "standalone" as const } : {}),
   async headers() {
     return [
       {

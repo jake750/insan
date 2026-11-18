@@ -10,3 +10,4 @@ android/keystore.properties
 *.jks
 *.keystore
 Insan-android.apk
+dist-pc/
