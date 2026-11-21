@@ -12,7 +12,7 @@ import { Sheet } from "./Sheet";
 import { buildDoc, docText, findSeg, replaceParagraph, updateSeg, type Doc } from "../engine/doc";
 import { alternatives, runPipeline } from "../engine/pipeline";
 import { detectLang, wordCount } from "../engine/text";
-import { EngineError, MODES, type DocBrief, type Mode, type PipelineStage } from "../engine/types";
+import { EngineError, GEMINI, MODES, isLocalEndpoint, type DocBrief, type Mode, type PipelineStage } from "../engine/types";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { Dialog } from "./Dialog";
 import { copyText, esc, exportDocx, exportPdf, exportText, importFile } from "./files";
@@ -54,6 +54,7 @@ import { SAMPLES } from "./samples";
 import { SettingsDialog } from "./SettingsDialog";
 import { useStore } from "./store";
 import { TunePanel } from "./TunePanel";
+import { UpdateBanner } from "./UpdateBanner";
 
 type Pop =
   | { kind: "seg"; id: string; rect: DOMRect }
@@ -236,8 +237,16 @@ export default function App() {
   const inHeat = useMemo(() => (showHeat && det.inRes && !busyRef.current ? det.inRes.sentences.map((s) => ({ start: s.start, end: s.end, score: s.score })) : null), [showHeat, det.inRes]);
   const busy = run !== null || rehum !== null;
   busyRef.current = busy;
-  const remoteNeedsKey = provider.kind === "anthropic" || !/\/\/(localhost|127\.0\.0\.1)/.test(provider.baseUrl);
+  const remoteNeedsKey = provider.kind === "anthropic" || !isLocalEndpoint(provider.baseUrl);
   const hasModel = !remoteNeedsKey || !!keys[provider.kind].trim();
+  // first run: a free Gemini key pasted right here, no trip to Settings
+  const [quickKey, setQuickKey] = useState("");
+  const startGemini = () => {
+    if (!quickKey.trim()) return;
+    store.setProvider({ kind: "openai", baseUrl: GEMINI.baseUrl, model: GEMINI.model, noThink: false });
+    store.setKey("openai", quickKey.trim());
+    setQuickKey("");
+  };
   const parts = Math.ceil(words / (provider.kind === "anthropic" ? 900 : 450));
 
   const errText = useCallback(
@@ -706,6 +715,7 @@ export default function App() {
           <IconOffline size={16} /> {d.offline}
         </div>
       )}
+      <UpdateBanner t={t} />
 
       <div className="modebar">
         <div className="modes" role="toolbar" aria-label={t.modes}>
@@ -888,12 +898,37 @@ export default function App() {
               <div className="empty">
                 <Logo size={36} draw />
                 <h2>{t.noModelTitle}</h2>
-                <p>{t.noModelBody}</p>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
-                  <button className="btn btn-primary" onClick={() => { store.setProvider({ kind: "anthropic", model: "claude-opus-5-5" }); setDialog("settings"); }}>
+                <p>{t.geminiStartBody}</p>
+                <ol className="start-steps">
+                  <li>
+                    <a className="link" href={GEMINI.keyUrl} target="_blank" rel="noopener noreferrer">{t.geminiStep1}</a>
+                  </li>
+                  <li>{t.geminiStep2}</li>
+                </ol>
+                <form className="start-key" onSubmit={(e) => { e.preventDefault(); startGemini(); }}>
+                  <input
+                    id="quick-key"
+                    className="input"
+                    dir="ltr"
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="AIza…"
+                    aria-label={t.apiKey}
+                    value={quickKey}
+                    onChange={(e) => setQuickKey(e.target.value)}
+                  />
+                  <button className="btn btn-primary" type="submit" disabled={!quickKey.trim()}>
+                    <IconSpark size={16} /> {t.geminiStart}
+                  </button>
+                </form>
+                <p className="start-note">{t.noModelBody} {t.geminiHelp}</p>
+                <div className="start-more">
+                  <span>{t.otherModels}:</span>
+                  <button className="link" onClick={() => { store.setProvider({ kind: "anthropic", model: "claude-opus-5-5" }); setDialog("settings"); }}>
                     {t.addClaudeKey}
                   </button>
-                  <button className="btn btn-line" style={{ height: 40 }} onClick={() => { store.setProvider({ kind: "openai", baseUrl: "http://localhost:11434/v1", model: "qwen3.5:4b", noThink: true }); setDialog("settings"); }}>
+                  <button className="link" onClick={() => { store.setProvider({ kind: "openai", baseUrl: "http://localhost:11434/v1", model: "qwen3.5:4b", noThink: true }); setDialog("settings"); }}>
                     {t.useOllama}
                   </button>
                 </div>

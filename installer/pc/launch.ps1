@@ -1,7 +1,8 @@
 # Opens Insan (installed by Insan-Setup.exe): starts the bundled server on this computer only if it isn't
 # running yet, and opens the app in its own window (Edge, Chrome or Brave app mode) or the default browser.
 # While the server starts, the window shows starting.html, which switches to the app once it answers.
-param([int]$Port = 3219)
+# -ServerOnly (used after an in-app update): start the server and open no window; the open one reloads itself.
+param([int]$Port = 3219, [switch]$ServerOnly)
 $ProgressPreference = "SilentlyContinue"
 $Here = $PSScriptRoot
 # not "localhost": it can resolve to IPv6 first and hang, while the server listens on IPv4 only
@@ -17,6 +18,7 @@ if (-not $running) {
   $env:NEXT_TELEMETRY_DISABLED = "1"
   Start-Process (Join-Path $Here "InsanServer.exe") -ArgumentList "server.js" -WorkingDirectory (Join-Path $Here "app") -WindowStyle Hidden
 }
+if ($ServerOnly) { return }
 
 # a browser in app mode gives Insan its own window, without tabs or an address bar
 $browser = foreach ($name in "msedge.exe", "chrome.exe", "brave.exe") {

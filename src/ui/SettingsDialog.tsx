@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { makeChat } from "../engine/providers";
-import { ANTHROPIC_MODELS, EngineError } from "../engine/types";
+import { ANTHROPIC_MODELS, EngineError, GEMINI, isLocalEndpoint } from "../engine/types";
 import { ADAPTERS, autoPost, proxiedPost } from "../detection/external";
 import { nativePost } from "../native";
 import { DSTRINGS } from "./detect/strings";
@@ -12,6 +12,7 @@ import { IconAlert, IconCheck } from "./Icons";
 import { panicWipe, useStore, type Theme } from "./store";
 
 const ENDPOINTS = [
+  { label: "Gemini (free key)", url: GEMINI.baseUrl, model: GEMINI.model, noThink: false },
   { label: "Ollama (local)", url: "http://localhost:11434/v1", model: "qwen3.5:4b", noThink: true },
   { label: "LM Studio (local)", url: "http://localhost:1234/v1", model: "", noThink: true },
   { label: "OpenAI", url: "https://api.openai.com/v1", model: "gpt-5.1", noThink: false },
@@ -113,13 +114,12 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
             <label>
               <span className="field-label">{t.endpoint}</span>
               <input className="input" dir="ltr" value={s.provider.baseUrl} onChange={(e) => s.setProvider({ baseUrl: e.target.value })} />
-              {/localhost|127\.0\.0\.1/.test(s.provider.baseUrl) && <div className="help">{t.ollamaHelp}</div>}
-            </label>
+              {/localhost|127\.0\.0\.1/.test(s.provider.baseUrl) && <div className="help">{t.ollamaHelp}</div>}            </label>
           </>
         )}
 
         <label>
-          <span className="field-label">{t.apiKey}{kind === "openai" && /localhost|127\.0\.0\.1/.test(s.provider.baseUrl) ? " (optional)" : ""}</span>
+          <span className="field-label">{t.apiKey}{kind === "openai" && isLocalEndpoint(s.provider.baseUrl) ? " (optional)" : ""}</span>
           <div style={{ display: "flex", gap: 6 }}>
             <input
               className="input"
@@ -137,6 +137,12 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
             <button className="btn btn-line" onClick={() => setShow(!show)}>{show ? t.hide : t.show}</button>
           </div>
           {kind === "anthropic" && <div className="help">{t.getKey}</div>}
+          {kind === "openai" && s.provider.baseUrl.startsWith(GEMINI.baseUrl) && (
+            <div className="help">
+              {t.geminiHelp}{" "}
+              <a href={GEMINI.keyUrl} target="_blank" rel="noopener noreferrer">{t.getGeminiKey}</a>
+            </div>
+          )}
         </label>
 
         <label className="check">

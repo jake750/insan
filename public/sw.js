@@ -1,7 +1,7 @@
 // Insan service worker: offline app shell. Caches only this site's own static files.
 // Never caches API calls, the proxy, or anything cross-origin (your text never touches the cache).
-const CACHE = "insan-v4";
-const SHELL = ["/", "/manifest.webmanifest", "/icon.svg?v=violet", "/icons/192.png?v=violet", "/icons/512.png?v=violet"];
+const CACHE = "insan-v5";
+const SHELL = ["/", "/manifest.webmanifest", "/icon.svg?v=ink", "/icons/192.png?v=ink", "/icons/512.png?v=ink"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

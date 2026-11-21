@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 // model providers, then the optional AI detectors (GPTZero, Sapling, Originality.ai, Copyleaks)
 const DEFAULT_HOSTS =
-  "api.anthropic.com,api.openai.com,openrouter.ai,api.groq.com,api.mistral.ai,api.deepseek.com,api.together.xyz," +
+  "api.anthropic.com,api.openai.com,openrouter.ai,generativelanguage.googleapis.com,api.groq.com,api.mistral.ai,api.deepseek.com,api.together.xyz," +
   "api.gptzero.me,api.sapling.ai,api.originality.ai,id.copyleaks.com,api.copyleaks.com";
 const ALLOWED = new Set(
   (process.env.INSAN_PROXY_HOSTS ?? DEFAULT_HOSTS)

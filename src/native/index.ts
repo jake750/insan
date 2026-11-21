@@ -108,7 +108,7 @@ export async function themeSystemBars(dark: boolean) {
   try {
     const { StatusBar, Style } = await import("@capacitor/status-bar");
     await StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light });
-    await StatusBar.setBackgroundColor({ color: dark ? "#0f0e18" : "#f2f2f8" });
+    await StatusBar.setBackgroundColor({ color: dark ? "#0a0f1a" : "#f1f3f8" });
   } catch {}
 }
 
@@ -118,4 +118,52 @@ export async function hideSplash() {
     const { SplashScreen } = await import("@capacitor/splash-screen");
     await SplashScreen.hide();
   } catch {}
+}
+
+/* ---------- in-app updates (Android APK from GitHub Releases) ---------- */
+
+interface AppUpdatePlugin {
+  info(): Promise<{ fromStore: boolean; canInstall: boolean }>;
+  download(o: { url: string }): Promise<{ bytes: number }>;
+  install(): Promise<{ needsPermission: boolean }>;
+  addListener(event: "progress", cb: (d: { percent: number }) => void): Promise<{ remove: () => void }>;
+}
+
+async function appUpdate(): Promise<AppUpdatePlugin | null> {
+  const c = cap();
+  if (!c?.isNativePlatform() || c.getPlatform() !== "android") return null;
+  const { registerPlugin } = await import("@capacitor/core");
+  return registerPlugin<AppUpdatePlugin>("AppUpdate");
+}
+
+/** Can this Android copy update itself? False on iOS, the web, and Google Play installs (Play updates them). */
+export async function androidCanSelfUpdate(): Promise<boolean> {
+  try {
+    const p = await appUpdate();
+    if (!p) return false;
+    return !(await p.info()).fromStore;
+  } catch {
+    return false; // an older native shell without the plugin
+  }
+}
+
+/** Downloads the APK (progress 0–100), then opens Android's installer. "permission": the user must allow installs first. */
+export async function androidUpdate(url: string, onProgress: (pct: number) => void): Promise<"installing" | "permission"> {
+  const p = await appUpdate();
+  if (!p) throw new Error("unsupported");
+  const h = await p.addListener("progress", (d) => onProgress(d.percent));
+  try {
+    await p.download({ url });
+  } finally {
+    h.remove();
+  }
+  const r = await p.install();
+  return r.needsPermission ? "permission" : "installing";
+}
+
+/** After the user allowed installs in Android settings: open the installer for the APK already downloaded. */
+export async function androidInstallDownloaded(): Promise<"installing" | "permission"> {
+  const p = await appUpdate();
+  if (!p) throw new Error("unsupported");
+  return (await p.install()).needsPermission ? "permission" : "installing";
 }

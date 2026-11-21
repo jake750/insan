@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { readFileSync } from "node:fs";
+
+// The app compares this with the latest GitHub release to offer in-app updates (src/ui/update.ts).
+const env = { NEXT_PUBLIC_APP_VERSION: JSON.parse(readFileSync("./package.json", "utf8")).version as string };
 
 // Strict privacy headers: no third-party anything. connect-src allows https/http
 // because the user chooses their own model endpoint (Anthropic, OpenAI-compatible, local Ollama).
@@ -20,10 +24,11 @@ const csp = [
 const native = process.env.CAP === "1";
 
 const config: NextConfig = native
-  ? { output: "export", distDir: ".next-native", images: { unoptimized: true }, poweredByHeader: false }
+  ? { output: "export", distDir: ".next-native", images: { unoptimized: true }, poweredByHeader: false, env }
   : {
   // route.web.ts files (the stateless proxy) exist only in the web build; the native export skips them
   pageExtensions: ["tsx", "ts", "web.ts"],
+  env,
   poweredByHeader: false,
   // STANDALONE=1: self-contained server for the Windows setup (scripts/build-pc.mjs), no node_modules needed
   ...(process.env.STANDALONE === "1" ? { output: "standalone" as const } : {}),

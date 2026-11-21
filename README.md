@@ -53,7 +53,11 @@ Other scripts:
 
 ## Add a model key
 
-Open **Settings** (gear icon, or `Ctrl/⌘ + ,`).
+**Free, in about a minute (Gemini).** On first start Insan asks for a key on the main screen. Open Google AI Studio (https://aistudio.google.com/apikey), sign in with a Google account, press *Create API key*, then paste the key and press **Start**. Insan uses Google's OpenAI-compatible endpoint with `gemini-flash-latest`. On the free tier Google may use what you send to improve its models, so use a paid key or another provider for private text. Settings → *OpenAI-compatible* → *Gemini (free key)* sets up the same thing.
+
+There is no keyless mode. The free keyless services we looked at protect browser access with a CAPTCHA (Cloudflare Turnstile), and Insan does not work around that.
+
+For any other provider, open **Settings** (gear icon, or `Ctrl/⌘ + ,`).
 
 **Claude (default)**
 1. Create a key at https://console.anthropic.com.
@@ -420,3 +424,13 @@ $p = @{}; Get-Content "android\keystore.properties" | ForEach-Object { if ($_ -m
 ```
 
 If the alias is not `insan`: `gh variable set ANDROID_KEY_ALIAS --body <alias>`. Every APK must be signed with the same key, or Android refuses to update over it.
+
+### In-app updates
+
+On start, the app checks the latest GitHub release (`src/update/release.ts`; public API, no key) and shows a bar when a newer version exists. *Later* hides it for a day.
+
+- **Android (APK from GitHub):** *Update now* downloads `Insan-X.Y.Z-android.apk` inside the app (`AppUpdatePlugin.java`) and opens Android's installer. The first time, Android asks you to allow *Install unknown apps* for Insan. Only this repository's release assets are downloaded, and Android only installs an APK signed with the same key, so a **signed release** (the secrets above) is required. Debug APKs from CI are signed with a different throwaway key on every run and cannot update each other. Installs from Google Play never show the bar, because Play updates them. Play does not allow the `REQUEST_INSTALL_PACKAGES` permission for an app like this, so remove it from the manifest before uploading an AAB there.
+- **Windows (Insan-Setup):** *Update now* asks the local server (`/api/update`, active only inside `InsanServer.exe`) to download that release's `Insan-Setup-X.Y.Z.exe` and run it silently. The setup replaces the app and starts the new server, and the open window reloads by itself.
+- **Source-zip install:** the bar links to the release page.
+- **Web (Vercel):** nothing to do, because every visit loads the latest build.
+- **iOS:** no bar, because iOS doesn't allow installing apps from outside the App Store.

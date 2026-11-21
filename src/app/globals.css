@@ -551,6 +551,28 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .det-item[data-on] { border-color: var(--brand); background: var(--brand-soft); }
 .det-item .check { align-items: center; }
 
+/* "new version" bar: the logo pulses while it downloads and installs */
+.update-bar {
+  margin: 0 20px 8px; padding: 8px 10px 8px 12px; border-radius: var(--radius); background: var(--sheet);
+  border: 1px solid var(--line); box-shadow: var(--shadow-xs); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  font-size: 13.5px; color: var(--ink); animation: rise 0.4s var(--spring);
+}
+.update-text { flex: 1 1 200px; min-width: 0; display: grid; gap: 8px; }
+.update-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.update-actions .btn { height: 34px; }
+@media (max-width: 767px) { .update-bar { margin: 0 12px 8px; } }
+
+/* first run: paste a free Gemini key right here, then the other ways to connect a model */
+.start-steps { margin: 0; padding-inline-start: 1.3em; display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
+.start-key { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.start-key .input { flex: 1 1 200px; min-width: 0; height: 40px; }
+.start-key .btn { height: 40px; }
+.empty p.start-note { font-size: 12.5px; color: var(--ink-3); max-width: 52ch; }
+.start-more { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 13px; color: var(--ink-3); margin-top: 4px; }
+.link { background: none; border: 0; padding: 0; font: inherit; color: var(--brand-text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: start; }
+.link:hover { text-decoration-thickness: 2px; }
+.link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 2px; }
+
 .offline-bar { margin: 0 20px 8px; padding: 8px 12px; border-radius: var(--radius); background: var(--warn-soft); color: var(--ink); font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .ios-steps { list-style: none; margin: 0; }
 .ios-steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; }

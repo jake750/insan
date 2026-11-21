@@ -118,7 +118,13 @@ export interface ProviderConfig {
   noThink: boolean;
 }
 
-export const ANTHROPIC_MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-2"];
+/** Google's OpenAI-compatible Gemini endpoint; a free key comes from Google AI Studio in about a minute. */
+export const GEMINI = { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-flash-latest", keyUrl: "https://aistudio.google.com/apikey" } as const;
+
+/** Local servers (Ollama, LM Studio) work without an API key. */
+export const isLocalEndpoint = (baseUrl: string) => /\/\/(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(baseUrl.trim() + "/");
+
+export const ANTHROPIC_MODELS =["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-2"];
 
 export const DEFAULT_PROVIDER: ProviderConfig = {
   kind: "anthropic",

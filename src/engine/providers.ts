@@ -1,7 +1,7 @@
 // Model providers. Requests go straight from the browser to the provider the user picked
 // (or through the optional stateless proxy). Nothing is logged anywhere.
 import Anthropic from "@anthropic-ai/sdk";
-import { EngineError, type ProviderConfig } from "./types";
+import { EngineError, isLocalEndpoint, type ProviderConfig } from "./types";
 
 export interface ChatRequest {
   system: string;
@@ -99,7 +99,7 @@ function normaliseAnthropic(e: unknown, signal?: AbortSignal): EngineError {
 function openaiChat(cfg: ProviderConfig): Chat {
   const base = cfg.baseUrl.trim().replace(/\/$/, "");
   if (!base) throw new EngineError("bad_request", "Set the endpoint URL in Settings.");
-  const isLocal = /\/\/(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(base + "/");
+  const isLocal = isLocalEndpoint(base);
   if (!isLocal && !cfg.apiKey.trim()) throw new EngineError("no_key", "Add the API key for this endpoint in Settings.");
 
   return async ({ system, user, maxTokens, signal, onText }) => {
@@ -130,12 +130,7 @@ function openaiChat(cfg: ProviderConfig): Chat {
       });
       if (signal?.aborted) throw new EngineError("aborted", "Stopped.");
       const data = typeof r.data === "string" ? JSON.parse(r.data || "{}") : r.data;
-      if (r.status >= 400) {
-        const msg = data?.error?.message ?? data?.error ?? `HTTP ${r.status}`;
-        if (r.status === 401 || r.status === 403) throw new EngineError("auth", `The endpoint rejected the key: ${msg}`);
-        if (r.status === 429) throw new EngineError("rate_limit", "Rate limit reached.", 30);
-        throw new EngineError(r.status >= 500 ? "overloaded" : "bad_request", String(msg));
-      }
+      if (r.status >= 400) throw statusError(r.status, errorMessage(data, `HTTP ${r.status}`));
       const out = stripThinking(String(data?.choices?.[0]?.message?.content ?? ""));
       onText?.(out);
       return out;
@@ -205,18 +200,31 @@ async function fetchWithRetry(url: string, init: RequestInit, tries = 3): Promis
   }
 }
 
+/** Error text from an OpenAI-style body. Google's endpoint wraps it in an array: [{ error: { message } }]. */
+function errorMessage(data: unknown, fallback: string): string {
+  const d = (Array.isArray(data) ? data[0] : data) as { error?: { message?: string } | string } | undefined;
+  const e = d?.error;
+  return String((typeof e === "object" ? e?.message : e) ?? fallback);
+}
+
+/** 401/403, or a 400 that is really about the key (Google answers a bad key with 400 "Please pass a valid API key"). */
+const isKeyProblem = (status: number, msg: string) => status === 401 || status === 403 || (status === 400 && /api[ _-]?key/i.test(msg));
+
+function statusError(status: number, msg: string, retryAfter?: number): EngineError {
+  if (isKeyProblem(status, msg)) return new EngineError("auth", `The endpoint rejected the key: ${msg}`);
+  if (status === 429) return new EngineError("rate_limit", "Rate limit reached.", retryAfter || 30);
+  if (status >= 500) return new EngineError("overloaded", `Provider error: ${msg}`);
+  return new EngineError("bad_request", msg);
+}
+
 async function httpError(res: Response): Promise<EngineError> {
   let msg = `${res.status} ${res.statusText}`;
   try {
-    const j = await res.json();
-    msg = j?.error?.message ?? j?.error ?? msg;
+    msg = errorMessage(await res.json(), msg);
   } catch {
     /* ignore */
   }
-  if (res.status === 401 || res.status === 403) return new EngineError("auth", `The endpoint rejected the key: ${msg}`);
-  if (res.status === 429) return new EngineError("rate_limit", "Rate limit reached.", Number(res.headers.get("retry-after")) || 30);
-  if (res.status >= 500) return new EngineError("overloaded", `Provider error: ${msg}`);
-  return new EngineError("bad_request", String(msg));
+  return statusError(res.status, msg, Number(res.headers.get("retry-after")) || undefined);
 }
 
 export function makeChat(cfg: ProviderConfig): Chat {
