@@ -5,37 +5,28 @@ import { SPLASH } from "../../splash";
 
 export const dynamic = "force-static";
 
-const BRAND = "#8047e1";
-const BRAND_INK = "#fcfbff";
-const PAPER = "#f2f2f8";
+const BRAND = "#1d2d4e";
+const BRAND_INK = "#fafcff";
+const SAFFRON = "#eea82f";
+const PAPER = "#f1f3f8";
 
 // "ios" = full-bleed 1024 app icon for Xcode (iOS rounds the corners itself); "ios-splash" = 2732² launch image.
 const ICONS = ["48", "72", "96", "144", "180", "192", "512", "1024", "maskable", "ios", "ios-splash"];
-
 
 export function generateStaticParams() {
   return [...ICONS.map((s) => `${s}.png`), ...SPLASH.map((s) => `splash-${s}.png`)].map((size) => ({ size }));
 }
 
-const BARS = [
-  [7, 14],
-  [11.5, 6],
-  [16, 18],
-  [20.5, 10],
-  [25, 15],
-];
+/** The living line (same path as public/icon.svg and the Logo component), on the 32-unit grid. */
+const LINE = "M5 18H9C11 18 11 11 13 11C15 11 15 23 17.5 23C20 23 20 14 22 14C24 14 24 18 27 18";
 
-function Bars({ px, inset }: { px: number; inset: number }) {
-  const s = (px / 32) * (1 - inset * 2);
+function Mark({ px, inset }: { px: number; inset: number }) {
+  const s = px * (1 - inset * 2);
   return (
-    <>
-      {BARS.map(([x, h], i) => (
-        <div
-          key={i}
-          style={{ position: "absolute", left: px * inset + (x - 1.5) * s, top: px * inset + (25 - h) * s, width: 3 * s, height: h * s, borderRadius: 1.5 * s, background: BRAND_INK }}
-        />
-      ))}
-    </>
+    <svg width={s} height={s} viewBox="0 0 32 32" style={{ position: "absolute", left: px * inset, top: px * inset }}>
+      <path d={LINE} fill="none" stroke={BRAND_INK} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={5} cy={18} r={1.9} fill={SAFFRON} />
+    </svg>
   );
 }
 
@@ -49,7 +40,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ size: stri
       (
         <div style={{ width: w, height: h, display: "flex", alignItems: "center", justifyContent: "center", background: PAPER }}>
           <div style={{ width: icon, height: icon, display: "flex", position: "relative", background: BRAND, borderRadius: icon * 0.22 }}>
-            <Bars px={icon} inset={0} />
+            <Mark px={icon} inset={0} />
           </div>
         </div>
       ),
@@ -61,7 +52,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ size: stri
   return new ImageResponse(
     (
       <div style={{ width: px, height: px, display: "flex", background: BRAND, borderRadius: maskable ? 0 : px * 0.22, position: "relative" }}>
-        <Bars px={px} inset={maskable ? 0.16 : 0} />
+        <Mark px={px} inset={maskable ? 0.16 : 0} />
       </div>
     ),
     { width: px, height: px },

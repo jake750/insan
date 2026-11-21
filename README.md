@@ -156,7 +156,7 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 - Command palette (`Ctrl/⌘ K`), dark/light/system theme, interface in EN/FR/AR, phone layout (see *On your phone*), installable PWA.
 
 **Naturalness report** (local, shown before and after)
-- Sentence rhythm bars and length variety (coefficient of variation, also called "burstiness").
+- Sentence rhythm line and length variety (coefficient of variation, also called "burstiness").
 - Average sentence length, stock phrases (with in-text highlighting), repeated openers, passive voice (EN/FR) and word variety (MATTR).
 - Readability: Flesch for EN, Kandel–Moles for FR, and an approximate measure for AR (no standard formula works on unvocalised Arabic, so the app labels it as approximate).
 - It is presented as writing-quality feedback, not as a promise about any detector.
@@ -236,7 +236,11 @@ Raw AI = the built-in sample paragraph (typical ChatGPT style). Humanized = the 
 
 ## Theme
 
-Violet, with no green anywhere. Every colour is an OKLCH token in `src/app/globals.css`: `--brand` is `oklch(0.55 0.22 295)` (about `#8047e1`), brightened to `oklch(0.72 0.16 295)` in dark mode; the magenta accent `oklch(0.6 0.22 340)` is used sparingly; neutrals sit at hue 290. The score scale runs indigo → amber → rose, and success is violet with a check mark. `node scripts/contrast-check.mjs` checks every text pair against WCAG AA in both themes. Icons, splash screens, `theme-color` and the Android resources use the same values.
+Ink and saffron. Every colour is an OKLCH token in `src/app/globals.css`. In light mode `--brand` is ink, `oklch(0.3 0.065 264)` (about `#1d2d4e`). In dark mode it becomes saffron, `oklch(0.78 0.15 76)` (about `#eea82f`), with ink text on it. The accent is a deeper saffron and is used sparingly. Neutrals sit at hue 262. The score scale runs blue → amber → rose. `node scripts/contrast-check.mjs` checks every text pair against WCAG AA in both themes. Icons, splash screens, `theme-color` and the Android resources use the same values.
+
+**The mark** is the *living line*: it starts flat, like a machine, then moves with the uneven pulse of a person. A saffron dot marks where the pen touches down. The same path is used in `public/icon.svg`, the `Logo` component, the PNG icon route and the Android vector.
+
+**Motion** follows the line. When the app opens, the pen dot lands and the line writes itself. While Insan rewrites, a saffron pulse runs along the logo, and the progress bar carries a beating pen tip. When the rewrite finishes, the logo gives one heartbeat. The sentence-rhythm strip in the report is the same kind of line, drawn from your sentence lengths. The PC starting page shows the line too. With *reduce motion* on, all of these stay still.
 
 ## On your phone
 

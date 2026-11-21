@@ -8,12 +8,12 @@ const config: CapacitorConfig = {
   appId: "app.insan.humanizer",
   appName: "Insan",
   webDir: ".next-native",
-  backgroundColor: "#f2f2f8",
+  backgroundColor: "#f1f3f8",
   ...(live ? { server: { url: live, cleartext: true } } : {}),
   android: { allowMixedContent: false },
   plugins: {
-    SplashScreen: { launchShowDuration: 1200, launchAutoHide: true, backgroundColor: "#8047e1", showSpinner: false, androidScaleType: "CENTER_CROP" },
-    StatusBar: { backgroundColor: "#f2f2f8", style: "LIGHT", overlaysWebView: false },
+    SplashScreen: { launchShowDuration: 1200, launchAutoHide: true, backgroundColor: "#1d2d4e", showSpinner: false, androidScaleType: "CENTER_CROP" },
+    StatusBar: { backgroundColor: "#f1f3f8", style: "LIGHT", overlaysWebView: false },
     Keyboard: { resize: "native" },
   },
 };

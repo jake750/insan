@@ -12,43 +12,48 @@
 @import "@fontsource/noto-naskh-arabic/arabic-600.css";
 
 /*
-  Insan palette — violet ink on lilac-grey paper. All colours are OKLCH tokens; nothing is hard-coded.
-  brand   oklch(0.55 0.22 295)  ≈ #7C3AED  actions, focus, the rhythm bars
-  accent  oklch(0.6 0.22 340)   magenta     highlights: what changed, stock phrases (used sparingly)
-  neutrals hue 290, very low chroma
-  score   lavender (low) → amber (mixed) → rose (high). No green anywhere, success is violet + a check.
+  Insan palette — "ink and saffron". All colours are OKLCH tokens; nothing is hard-coded.
+  brand   light: ink   oklch(0.3 0.065 264) ≈ #1D2D4E   actions, focus, the living line
+          dark:  saffron oklch(0.78 0.15 76) ≈ #E8A317 (ink text on it)
+  accent  saffron, deeper in light mode   highlights: what changed, stock phrases (used sparingly)
+  logo-*  the mark keeps the same ink square, white line and saffron pen dot in both themes
+  neutrals hue 262 (ink), very low chroma
+  score   blue (low) → amber (mixed) → rose (high). Success is the brand colour + a check.
 */
 :root {
-  --paper: oklch(0.962 0.008 290);
-  --sheet: oklch(0.993 0.003 290);
-  --sheet-2: oklch(0.972 0.008 290);
-  --ink: oklch(0.22 0.03 290);
-  --ink-2: oklch(0.42 0.03 290);
-  --ink-3: oklch(0.51 0.025 290);
-  --line: oklch(0.9 0.014 290);
-  --line-2: oklch(0.84 0.018 290);
-  --brand: oklch(0.55 0.22 295);
-  --brand-hover: oklch(0.49 0.22 295);
-  --brand-ink: oklch(0.99 0.01 295);
-  --brand-soft: oklch(0.955 0.03 295);
-  --brand-text: oklch(0.5 0.22 295);
-  --accent: oklch(0.6 0.22 340);
-  --accent-soft: oklch(0.65 0.22 340 / 0.16);
+  --paper: oklch(0.965 0.006 262);
+  --sheet: oklch(0.994 0.002 262);
+  --sheet-2: oklch(0.975 0.006 262);
+  --ink: oklch(0.23 0.035 264);
+  --ink-2: oklch(0.42 0.03 262);
+  --ink-3: oklch(0.51 0.025 262);
+  --line: oklch(0.9 0.012 262);
+  --line-2: oklch(0.84 0.016 262);
+  --brand: oklch(0.3 0.065 264);
+  --brand-hover: oklch(0.37 0.075 264);
+  --brand-ink: oklch(0.99 0.004 264);
+  --brand-soft: oklch(0.952 0.018 264);
+  --brand-text: oklch(0.42 0.11 262);
+  --accent: oklch(0.6 0.13 68);
+  --accent-soft: oklch(0.82 0.15 80 / 0.28);
   --del: oklch(0.5 0.17 25);
   --del-soft: oklch(0.6 0.17 25 / 0.12);
-  --warn: oklch(0.52 0.12 65);
-  --warn-soft: oklch(0.8 0.14 75 / 0.22);
-  --score-low: oklch(0.6 0.14 278);
+  --warn: oklch(0.52 0.14 45);
+  --warn-soft: oklch(0.8 0.12 55 / 0.22);
+  --score-low: oklch(0.58 0.12 255);
   --score-mid: oklch(0.72 0.15 70);
   --score-high: oklch(0.6 0.21 15);
-  --score-low-text: oklch(0.47 0.16 280);
+  --score-low-text: oklch(0.46 0.13 258);
   --score-mid-text: oklch(0.5 0.12 62);
   --score-high-text: oklch(0.5 0.2 18);
-  --scrim: oklch(0.2 0.03 290 / 0.42);
-  --shadow: 0 1px 0 oklch(0.2 0.03 290 / 0.04), 0 8px 24px -12px oklch(0.2 0.05 290 / 0.2);
-  --shadow-xs: 0 1px 2px oklch(0.15 0.04 290 / 0.08);
-  --shadow-pop: 0 18px 50px -12px oklch(0.12 0.04 290 / 0.35);
-  --shadow-dialog: 0 30px 80px -20px oklch(0.12 0.04 290 / 0.45);
+  --scrim: oklch(0.2 0.035 264 / 0.42);
+  --shadow: 0 1px 0 oklch(0.2 0.03 264 / 0.04), 0 8px 24px -12px oklch(0.2 0.05 264 / 0.2);
+  --shadow-xs: 0 1px 2px oklch(0.15 0.04 264 / 0.08);
+  --shadow-pop: 0 18px 50px -12px oklch(0.12 0.04 264 / 0.35);
+  --shadow-dialog: 0 30px 80px -20px oklch(0.12 0.04 264 / 0.45);
+  --logo-bg: oklch(0.3 0.065 264);
+  --logo-line: oklch(0.99 0.004 264);
+  --logo-dot: oklch(0.78 0.15 76);
   --radius-lg: 14px;
   --radius: 9px;
   --radius-sm: 6px;
@@ -62,63 +67,63 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: oklch(0.17 0.02 290);
-    --sheet: oklch(0.21 0.022 290);
-    --sheet-2: oklch(0.245 0.025 290);
-    --ink: oklch(0.94 0.012 290);
-    --ink-2: oklch(0.79 0.02 290);
-    --ink-3: oklch(0.68 0.02 290);
-    --line: oklch(0.3 0.025 290);
-    --line-2: oklch(0.37 0.03 290);
-    --brand: oklch(0.72 0.16 295);
-    --brand-hover: oklch(0.78 0.14 295);
-    --brand-ink: oklch(0.17 0.04 295);
-    --brand-soft: oklch(0.3 0.08 295);
-    --brand-text: oklch(0.78 0.14 295);
-    --accent: oklch(0.76 0.16 340);
-    --accent-soft: oklch(0.7 0.18 340 / 0.22);
+    --paper: oklch(0.17 0.025 264);
+    --sheet: oklch(0.21 0.028 264);
+    --sheet-2: oklch(0.245 0.03 264);
+    --ink: oklch(0.94 0.01 264);
+    --ink-2: oklch(0.79 0.018 264);
+    --ink-3: oklch(0.68 0.02 264);
+    --line: oklch(0.3 0.028 264);
+    --line-2: oklch(0.37 0.032 264);
+    --brand: oklch(0.78 0.15 76);
+    --brand-hover: oklch(0.84 0.13 80);
+    --brand-ink: oklch(0.22 0.05 264);
+    --brand-soft: oklch(0.3 0.05 76);
+    --brand-text: oklch(0.83 0.13 80);
+    --accent: oklch(0.76 0.15 60);
+    --accent-soft: oklch(0.75 0.14 70 / 0.22);
     --del: oklch(0.74 0.14 25);
     --del-soft: oklch(0.65 0.16 25 / 0.18);
-    --warn: oklch(0.82 0.13 75);
-    --warn-soft: oklch(0.75 0.14 75 / 0.18);
-    --score-low: oklch(0.66 0.13 280);
+    --warn: oklch(0.8 0.12 50);
+    --warn-soft: oklch(0.75 0.12 55 / 0.18);
+    --score-low: oklch(0.68 0.11 255);
     --score-mid: oklch(0.665 0.14 78);
     --score-high: oklch(0.62 0.2 15);
-    --score-low-text: oklch(0.8 0.1 280);
+    --score-low-text: oklch(0.8 0.08 255);
     --score-mid-text: oklch(0.84 0.13 78);
     --score-high-text: oklch(0.78 0.14 18);
-    --scrim: oklch(0.08 0.02 290 / 0.6);
+    --scrim: oklch(0.08 0.025 264 / 0.6);
     --shadow: 0 1px 0 oklch(0 0 0 / 0.3), 0 10px 30px -12px oklch(0 0 0 / 0.6);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --paper: oklch(0.17 0.02 290);
-  --sheet: oklch(0.21 0.022 290);
-  --sheet-2: oklch(0.245 0.025 290);
-  --ink: oklch(0.94 0.012 290);
-  --ink-2: oklch(0.79 0.02 290);
-  --ink-3: oklch(0.68 0.02 290);
-  --line: oklch(0.3 0.025 290);
-  --line-2: oklch(0.37 0.03 290);
-  --brand: oklch(0.72 0.16 295);
-  --brand-hover: oklch(0.78 0.14 295);
-  --brand-ink: oklch(0.17 0.04 295);
-  --brand-soft: oklch(0.3 0.08 295);
-  --brand-text: oklch(0.78 0.14 295);
-  --accent: oklch(0.76 0.16 340);
-  --accent-soft: oklch(0.7 0.18 340 / 0.22);
+  --paper: oklch(0.17 0.025 264);
+  --sheet: oklch(0.21 0.028 264);
+  --sheet-2: oklch(0.245 0.03 264);
+  --ink: oklch(0.94 0.01 264);
+  --ink-2: oklch(0.79 0.018 264);
+  --ink-3: oklch(0.68 0.02 264);
+  --line: oklch(0.3 0.028 264);
+  --line-2: oklch(0.37 0.032 264);
+  --brand: oklch(0.78 0.15 76);
+  --brand-hover: oklch(0.84 0.13 80);
+  --brand-ink: oklch(0.22 0.05 264);
+  --brand-soft: oklch(0.3 0.05 76);
+  --brand-text: oklch(0.83 0.13 80);
+  --accent: oklch(0.76 0.15 60);
+  --accent-soft: oklch(0.75 0.14 70 / 0.22);
   --del: oklch(0.74 0.14 25);
   --del-soft: oklch(0.65 0.16 25 / 0.18);
-  --warn: oklch(0.82 0.13 75);
-  --warn-soft: oklch(0.75 0.14 75 / 0.18);
-  --score-low: oklch(0.66 0.13 280);
+  --warn: oklch(0.8 0.12 50);
+  --warn-soft: oklch(0.75 0.12 55 / 0.18);
+  --score-low: oklch(0.68 0.11 255);
   --score-mid: oklch(0.665 0.14 78);
   --score-high: oklch(0.62 0.2 15);
-  --score-low-text: oklch(0.8 0.1 280);
+  --score-low-text: oklch(0.8 0.08 255);
   --score-mid-text: oklch(0.84 0.13 78);
   --score-high-text: oklch(0.78 0.14 18);
-  --scrim: oklch(0.08 0.02 290 / 0.6);
+  --scrim: oklch(0.08 0.025 264 / 0.6);
   --shadow: 0 1px 0 oklch(0 0 0 / 0.3), 0 10px 30px -12px oklch(0 0 0 / 0.6);
   color-scheme: dark;
 }
@@ -310,10 +315,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stage[data-state="active"] { color: var(--ink); font-weight: 500; }
 .stage[data-state="done"] { color: var(--brand-text); }
 .dot { width: 7px; height: 7px; border-radius: 99px; background: currentColor; opacity: 0.5; }
-.stage[data-state="active"] .dot { background: var(--brand); opacity: 1; animation: pulse 1.1s ease-in-out infinite; }
-@keyframes pulse { 50% { transform: scale(1.6); opacity: 0.5; } }
-.progress { height: 2px; background: var(--line); position: relative; overflow: hidden; }
-.progress > i { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--brand); transition: width 0.4s var(--spring); }
+.stage[data-state="active"] .dot { background: var(--logo-dot); opacity: 1; animation: heartbeat 1.3s ease-in-out infinite; }
+.progress { height: 2px; background: var(--line); position: relative; }
+.progress > i { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--brand); border-radius: 2px; transition: width 0.4s var(--spring); }
+/* the pen tip: a saffron dot at the head of the line, beating while Insan writes */
+.progress > i::after { content: ""; position: absolute; inset-inline-end: -4px; top: -3px; width: 8px; height: 8px; border-radius: 99px; background: var(--logo-dot); box-shadow: 0 0 0 3px var(--sheet); animation: heartbeat 1.3s ease-in-out infinite; }
 
 .notice {
   margin: 12px 16px 0; padding: 10px 12px; border-radius: var(--radius); font-size: 13px;
@@ -327,10 +333,44 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .empty h2 { font-family: var(--font-text); font-size: 24px; font-weight: 500; margin: 0; letter-spacing: -0.01em; line-height: 1.25; }
 .empty p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
 
-/* rhythm strip — the signature element */
-.rhythm { display: flex; align-items: flex-end; gap: 2px; height: 34px; min-width: 60px; }
-.rhythm i { flex: 1 1 0; max-width: 9px; min-width: 2px; background: var(--brand); border-radius: 2px 2px 0 0; opacity: 0.85; transition: height 0.5s var(--spring); }
-.rhythm.muted i { background: var(--ink-3); opacity: 0.45; }
+/* rhythm strip — sentence lengths as a pulse line (the signature element) */
+.rhythm { display: block; flex: none; overflow: visible; }
+.rhythm-line { fill: none; stroke: var(--brand); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 100; animation: line-write 0.9s var(--spring) both; }
+.rhythm.muted .rhythm-line { stroke: var(--ink-3); opacity: 0.5; }
+.rhythm-dot { fill: var(--logo-dot); transform-box: fill-box; transform-origin: center; animation: dot-land 0.5s var(--spring) 0.7s both; }
+
+/* ---------- the living line: motion language ----------
+   One idea everywhere: a pen touches down (saffron dot), the line writes itself,
+   and while Insan works a pulse runs along it. Finishing = one heartbeat. */
+.logo { display: block; flex: none; overflow: visible; }
+.logo-bg { fill: var(--logo-bg); }
+.logo-line, .logo-pulse { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.logo-line { stroke: var(--logo-line); }
+.logo-pulse { stroke: var(--logo-dot); opacity: 0; }
+.logo[data-busy] .logo-pulse { opacity: 1; }
+.logo-dot { fill: var(--logo-dot); transform-box: fill-box; transform-origin: center; }
+.logo[data-draw] .logo-dot { animation: dot-land 0.45s var(--spring) both; }
+.logo[data-draw] .logo-line { stroke-dasharray: 100; animation: line-write 0.95s var(--spring) 0.18s both; }
+.logo[data-busy] .logo-pulse { stroke-dasharray: 22 200; animation: line-run 1.3s cubic-bezier(0.45, 0, 0.3, 1) infinite; }
+.logo[data-busy] .logo-dot { animation: heartbeat 1.3s ease-in-out infinite; }
+.logo[data-beat] { animation: beat 0.6s var(--spring); }
+.pulse-line { display: block; overflow: visible; max-width: 100%; height: auto; }
+.pl-line, .pl-pulse { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.pl-line { stroke: var(--brand); opacity: 0.85; stroke-dasharray: 100; animation: line-write 1.4s var(--spring) 0.15s both; }
+.pl-pulse { stroke: var(--logo-dot); stroke-dasharray: 18 200; stroke-dashoffset: 18; animation: line-run-rest 4.2s cubic-bezier(0.45, 0, 0.3, 1) 1.8s infinite; }
+.pl-dot { fill: var(--logo-dot); transform-box: fill-box; transform-origin: center; animation: dot-land 0.5s var(--spring) both, heartbeat 4.2s ease-in-out 1.8s infinite; }
+@keyframes line-write { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes dot-land { 0% { transform: scale(0); } 60% { transform: scale(1.45); } 100% { transform: scale(1); } }
+@keyframes line-run { from { stroke-dasharray: 22 200; stroke-dashoffset: 22; } to { stroke-dasharray: 22 200; stroke-dashoffset: -100; } }
+/* a pulse that runs for the first ~40% of the cycle, then rests */
+@keyframes line-run-rest { 0% { stroke-dasharray: 18 200; stroke-dashoffset: 18; } 40%, 100% { stroke-dasharray: 18 200; stroke-dashoffset: -100; } }
+/* lub-dub */
+@keyframes heartbeat { 0%, 45%, 100% { transform: scale(1); } 10% { transform: scale(1.45); } 20% { transform: scale(1.05); } 30% { transform: scale(1.3); } }
+@keyframes beat { 0% { transform: scale(1); } 30% { transform: scale(1.14); } 55% { transform: scale(0.96); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .logo *, .logo, .pulse-line *, .rhythm *, .progress > i::after, .stage .dot { animation: none !important; stroke-dashoffset: 0; }
+  .logo-pulse, .pl-pulse { display: none; }
+}
 
 /* report */
 .report { grid-column: 1 / -1; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); }

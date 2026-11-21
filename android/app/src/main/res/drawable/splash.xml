@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Launch screen: brand violet with the bars mark centred -->
+<!-- Launch screen: ink with the living-line mark centred -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/insanBrand" />
     <item android:drawable="@drawable/ic_launcher_foreground" android:gravity="center" android:width="160dp" android:height="160dp" />

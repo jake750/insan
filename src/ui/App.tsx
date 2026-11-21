@@ -45,6 +45,7 @@ import {
   IconUndo,
   IconUpload,
   Logo,
+  PulseLine,
 } from "./Icons";
 import { InputEditor } from "./InputEditor";
 import { OutputView } from "./OutputView";
@@ -671,7 +672,7 @@ export default function App() {
     <div className="shell">
       <header className="topbar">
         <a className="brand" href="/" aria-label={t.appName}>
-          <Logo />
+          <Logo draw busy={busy} />
           <span className="brand-name">
             {uiLang === "ar" ? "إنسان" : "Insan"}
             <span>{uiLang === "ar" ? "Insan" : "إنسان"}</span>
@@ -885,7 +886,7 @@ export default function App() {
               />
             ) : !hasModel ? (
               <div className="empty">
-                <Logo size={36} />
+                <Logo size={36} draw />
                 <h2>{t.noModelTitle}</h2>
                 <p>{t.noModelBody}</p>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
@@ -899,6 +900,7 @@ export default function App() {
               </div>
             ) : (
               <div className="empty">
+                <PulseLine />
                 <h2>{t.outputEmptyTitle}</h2>
                 <p>{t.outputEmptyBody}</p>
               </div>

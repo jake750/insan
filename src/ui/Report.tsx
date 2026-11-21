@@ -2,15 +2,29 @@
 import type { Report as R } from "../analysis/metrics";
 import type { Strings } from "./i18n";
 
+/** Sentence lengths drawn as a pulse line (the brand's living line): flat = machine rhythm, uneven = human. */
 export function Rhythm({ lengths, muted, label }: { lengths: number[]; muted?: boolean; label: string }) {
   const shown = lengths.slice(0, 60);
   const max = Math.max(12, ...shown);
+  const W = 120, H = 34, pad = 3;
+  const pts = (shown.length > 1 ? shown : [shown[0] ?? 0, shown[0] ?? 0]).map((l, i, a) => [
+    pad + (i / (a.length - 1)) * (W - pad * 2),
+    H - pad - Math.max(0.08, l / max) * (H - pad * 2),
+  ]);
+  // Catmull-Rom → cubic Bézier, so the line flows instead of zig-zagging.
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [p0, p1, p2, p3] = [pts[i - 1] ?? pts[i], pts[i], pts[i + 1], pts[i + 2] ?? pts[i + 1]];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += `C${c1.map((n) => n.toFixed(1)).join(" ")} ${c2.map((n) => n.toFixed(1)).join(" ")} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  const end = pts[pts.length - 1];
   return (
-    <div className={`rhythm${muted ? " muted" : ""}`} role="img" aria-label={label}>
-      {shown.map((l, i) => (
-        <i key={i} style={{ height: `${Math.max(8, (l / max) * 100)}%` }} />
-      ))}
-    </div>
+    <svg key={shown.join(",")} className={`rhythm${muted ? " muted" : ""}`} viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={label}>
+      <path className="rhythm-line" d={d} pathLength={100} />
+      {!muted && <circle className="rhythm-dot" cx={end[0]} cy={end[1]} r="2.6" />}
+    </svg>
   );
 }
 

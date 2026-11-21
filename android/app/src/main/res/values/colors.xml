@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- sRGB values of the app OKLCH theme tokens (scripts/contrast-check.mjs, hex flag) -->
+<!-- sRGB values of the app OKLCH theme tokens (scripts/contrast-check.mjs, hex flag): ink and saffron -->
 <resources>
-    <color name="colorPrimary">#8047E1</color>
-    <color name="colorPrimaryDark">#F2F2F8</color>
-    <color name="colorAccent">#8047E1</color>
-    <color name="insanPaper">#F2F2F8</color>
-    <color name="insanBrand">#8047E1</color>
+    <color name="colorPrimary">#1D2D4E</color>
+    <color name="colorPrimaryDark">#F1F3F8</color>
+    <color name="colorAccent">#EEA82F</color>
+    <color name="insanPaper">#F1F3F8</color>
+    <color name="insanBrand">#1D2D4E</color>
 </resources>

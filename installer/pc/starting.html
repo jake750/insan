@@ -5,21 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Insan</title>
 <style>
-  :root { --bg: #f2f2f8; --ink: #1d1a2e; --ink-2: #5b5675; --brand: #8047e1; --track: #e2ddf3; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #0f0e18; --ink: #ecebf5; --ink-2: #a39fbd; --brand: #a57cf0; --track: #2a2640; } }
+  :root { --bg: #f1f3f8; --ink: #141d2d; --ink-2: #444d5e; --line: #1d2d4e; --dot: #eea82f; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0a0f1a; --ink: #e8ebf2; --ink-2: #b5bbc7; --line: #e8ebf2; --dot: #eea82f; } }
   html, body { height: 100%; margin: 0; }
   body { display: grid; place-items: center; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
   main { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 16px; }
-  .ring { width: 44px; height: 44px; border-radius: 50%; border: 4px solid var(--track); border-top-color: var(--brand); animation: spin 0.9s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .ring { animation-duration: 3s; } }
+  /* the living line: writes itself, then a saffron pulse runs along it until the app answers */
+  .live { width: 120px; height: 24px; overflow: visible; }
+  .live path { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .live .l { stroke: var(--line); stroke-dasharray: 100; animation: write 1s cubic-bezier(0.32, 0.72, 0, 1) both; }
+  .live .p { stroke: var(--dot); stroke-dasharray: 20 200; stroke-dashoffset: 20; animation: run 1.3s cubic-bezier(0.45, 0, 0.3, 1) 0.9s infinite; }
+  .live circle { fill: var(--dot); transform-box: fill-box; transform-origin: center; animation: beat 1.3s ease-in-out 0.9s infinite; }
+  @keyframes write { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+  @keyframes run { from { stroke-dashoffset: 20; } to { stroke-dashoffset: -100; } }
+  @keyframes beat { 0%, 45%, 100% { transform: scale(1); } 10% { transform: scale(1.45); } 20% { transform: scale(1.05); } 30% { transform: scale(1.3); } }
+  @media (prefers-reduced-motion: reduce) { .live .l, .live circle { animation: none; } .live .p { animation-duration: 3s; } }
   h1 { margin: 0; font-size: 18px; font-weight: 600; }
   p { margin: 0; color: var(--ink-2); font-size: 13.5px; }
 </style>
 </head>
 <body>
 <main>
-  <div class="ring" aria-hidden="true"></div>
+  <svg class="live" viewBox="0 0 120 24" aria-hidden="true">
+    <path class="l" pathLength="100" d="M3 12H42C46 12 46 4 50 4C54 4 54 20 59 20C64 20 64 7 68 7C72 7 72 12 78 12H117"/>
+    <path class="p" pathLength="100" d="M3 12H42C46 12 46 4 50 4C54 4 54 20 59 20C64 20 64 7 68 7C72 7 72 12 78 12H117"/>
+    <circle cx="3" cy="12" r="2.6"/>
+  </svg>
   <h1>Starting Insan… <span dir="rtl" lang="ar">جارٍ تشغيل إنسان…</span></h1>
   <p id="note">The first start after installing can take up to half a minute.</p>
 </main>

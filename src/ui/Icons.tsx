@@ -1,5 +1,5 @@
 // Minimal inline icon set (1.6px stroke, 20px grid). No icon font, no CDN.
-import type { SVGProps } from "react";
+import { useEffect, useRef, useState, type SVGProps } from "react";
 
 type P = SVGProps<SVGSVGElement> & { size?: number };
 const base = (size = 18): SVGProps<SVGSVGElement> => ({
@@ -49,20 +49,48 @@ export const IconInstall = make(<><rect x="5.5" y="2.5" width="9" height="15" rx
 export const IconOffline = make(<><path d="M3 3l14 14" /><path d="M5.5 8.6A7 7 0 0 1 9 7.1M14.5 8.6A7 7 0 0 0 12.6 7.5M7.5 11.5a3.5 3.5 0 0 1 3.4-1M10 15h.01" /></>);
 export const IconGlobe = make(<><circle cx="10" cy="10" r="7" /><path d="M3 10h14M10 3c2 2.2 2.8 4.5 2.8 7s-.8 4.8-2.8 7c-2-2.2-2.8-4.5-2.8-7S8 5.2 10 3Z" /></>);
 
-/** Brand mark: a rhythm of uneven bars — what human sentences look like. */
-export function Logo({ size = 26 }: { size?: number }) {
+/** The living line: flat like a machine, then the uneven pulse of a person. Same path as public/icon.svg. */
+export const LIVING_LINE = "M5 18H9C11 18 11 11 13 11C15 11 15 23 17.5 23C20 23 20 14 22 14C24 14 24 18 27 18";
+
+/**
+ * Brand mark. `draw`: the pen touches down (saffron dot) and the line writes itself once.
+ * `busy`: a saffron pulse runs along the line. When busy ends, the mark gives one heartbeat.
+ */
+export function Logo({ size = 26, draw = false, busy = false }: { size?: number; draw?: boolean; busy?: boolean }) {
+  const [beat, setBeat] = useState(0);
+  const was = useRef(busy);
+  useEffect(() => {
+    if (was.current && !busy) setBeat((b) => b + 1);
+    was.current = busy;
+  }, [busy]);
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="var(--brand)" />
-      {[
-        [7, 14],
-        [11.5, 6],
-        [16, 18],
-        [20.5, 10],
-        [25, 15],
-      ].map(([x, h], i) => (
-        <rect key={i} x={x - 1.5} y={25 - h} width="3" height={h} rx="1.5" fill="var(--brand-ink)" />
-      ))}
+    <svg
+      key={beat}
+      className="logo"
+      data-draw={draw || undefined}
+      data-busy={busy || undefined}
+      data-beat={beat > 0 || undefined}
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      aria-hidden="true"
+    >
+      <rect className="logo-bg" width="32" height="32" rx="8" />
+      <path className="logo-line" d={LIVING_LINE} pathLength={100} />
+      <path className="logo-pulse" d={LIVING_LINE} pathLength={100} />
+      <circle className="logo-dot" cx="5" cy="18" r="1.9" />
+    </svg>
+  );
+}
+
+/** Wide living line for empty states: writes itself, then a slow pulse passes every few seconds. */
+export function PulseLine({ width = 220 }: { width?: number }) {
+  const d = "M3 16H58C63 16 63 5 68 5C73 5 73 27 79 27C85 27 85 9 90 9C95 9 95 16 102 16H157";
+  return (
+    <svg className="pulse-line" width={width} height={(width * 32) / 160} viewBox="0 0 160 32" aria-hidden="true">
+      <path className="pl-line" d={d} pathLength={100} />
+      <path className="pl-pulse" d={d} pathLength={100} />
+      <circle className="pl-dot" cx="3" cy="16" r="2.6" />
     </svg>
   );
 }

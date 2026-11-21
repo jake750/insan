@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "Insan — humanize your writing",
   description: "Rewrite stiff or AI-sounding text into natural writing, with the meaning intact. Private by design.",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg?v=violet", apple: "/icons/180.png?v=violet" },
+  icons: { icon: "/icon.svg?v=ink", apple: "/icons/180.png?v=ink" },
   appleWebApp: {
     capable: true,
     title: "Insan",
@@ -27,8 +27,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover", // lets the layout use the notch / gesture-bar safe areas
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f0e18" },
+    { media: "(prefers-color-scheme: light)", color: "#f1f3f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0f1a" },
   ],
 };
 
