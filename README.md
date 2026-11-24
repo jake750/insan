@@ -416,7 +416,13 @@ Honest note: the 4B model left a grammar slip ("شركات الصغيرة" shoul
 - `Insan-X.Y.Z-android.apk` (and `.aab` for Google Play): install the APK on the phone directly.
 - `Insan-X.Y.Z-pc.zip`: unzip, then double-click `install-windows.cmd` (or run `install-mac-linux.sh`).
 
-**Signing in CI (once).** Without these secrets the workflow attaches a debug APK. Create the keystore first (*Android app → Signing* above), then run in PowerShell from the project folder (values are read from your files, nothing is typed by hand):
+**Signing in CI (once).** Without these secrets the workflow attaches a debug APK. The easiest way is one script that asks for a password (hidden), creates `android/insan-release.jks`, writes `android/keystore.properties` and uploads the three secrets with `gh`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup-signing.ps1
+```
+
+It never replaces an existing key. Back up the `.jks` file and its password, because without them phones can't install updates over the app anymore. By hand instead: create the keystore (*Android app → Signing* above), then run in PowerShell from the project folder (values are read from your files, nothing is typed by hand):
 
 ```powershell
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("android\insan-release.jks")) | gh secret set ANDROID_KEYSTORE_BASE64
