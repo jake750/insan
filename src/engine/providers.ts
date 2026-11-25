@@ -41,7 +41,8 @@ function anthropicChat(cfg: ProviderConfig): Chat {
     apiKey: cfg.apiKey.trim(),
     dangerouslyAllowBrowser: true, // bring-your-own-key: the key never leaves this browser except to Anthropic
     maxRetries: 2,
-    ...(cfg.useProxy
+    // the app has no proxy server of its own; Anthropic allows direct calls from it anyway
+    ...(cfg.useProxy && !nativeHttp()
       ? { baseURL: absolute(cfg.proxyUrl), defaultHeaders: { "x-insan-target": "https://api.anthropic.com" } }
       : {}),
   });
@@ -96,6 +97,9 @@ function normaliseAnthropic(e: unknown, signal?: AbortSignal): EngineError {
 
 /* ---------------- OpenAI-compatible (OpenAI, OpenRouter, Ollama, LM Studio…) ---------------- */
 
+/** Endpoints whose CORS blocked streaming inside the app; they use native HTTP for the rest of the session. */
+const NO_STREAM = new Set<string>();
+
 function openaiChat(cfg: ProviderConfig): Chat {
   const base = cfg.baseUrl.trim().replace(/\/$/, "");
   if (!base) throw new EngineError("bad_request", "Set the endpoint URL in Settings.");
@@ -103,10 +107,13 @@ function openaiChat(cfg: ProviderConfig): Chat {
   if (!isLocal && !cfg.apiKey.trim()) throw new EngineError("no_key", "Add the API key for this endpoint in Settings.");
 
   return async ({ system, user, maxTokens, signal, onText }) => {
-    const url = cfg.useProxy && !isLocal ? `${absolute(cfg.proxyUrl)}/chat/completions` : `${base}/chat/completions`;
+    // the app has no proxy server of its own: there it always talks to the endpoint directly
+    const native = nativeHttp() && !isLocal;
+    const viaProxy = cfg.useProxy && !isLocal && !native;
+    const url = viaProxy ? `${absolute(cfg.proxyUrl)}/chat/completions` : `${base}/chat/completions`;
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (cfg.apiKey.trim()) headers.authorization = `Bearer ${cfg.apiKey.trim()}`;
-    if (cfg.useProxy && !isLocal) headers["x-insan-target"] = base;
+    if (viaProxy) headers["x-insan-target"] = base;
     const body: Record<string, unknown> = {
       model: cfg.model,
       stream: true,
@@ -121,11 +128,11 @@ function openaiChat(cfg: ProviderConfig): Chat {
       body.think = false;
     }
 
-    // Inside the Android/iOS app: native HTTP (no CORS), non-streaming, the reply arrives in one piece.
-    if (nativeHttp() && !isLocal) {
+    // Native HTTP (no CORS), non-streaming: the reply arrives in one piece. Only a fallback inside the app.
+    const nativeOnce = async (): Promise<string> => {
       const { CapacitorHttp } = await import("@capacitor/core");
       if (signal?.aborted) throw new EngineError("aborted", "Stopped.");
-      const r = await CapacitorHttp.post({ url: `${base}/chat/completions`, headers, data: { ...body, stream: false }, responseType: "json" }).catch(() => {
+      const r = await CapacitorHttp.post({ url, headers, data: { ...body, stream: false }, responseType: "json" }).catch(() => {
         throw new EngineError("network", "Could not reach the endpoint. Check your connection.");
       });
       if (signal?.aborted) throw new EngineError("aborted", "Stopped.");
@@ -134,13 +141,21 @@ function openaiChat(cfg: ProviderConfig): Chat {
       const out = stripThinking(String(data?.choices?.[0]?.message?.content ?? ""));
       onText?.(out);
       return out;
-    }
+    };
+
+    // In the app, stream like the browser does (Gemini, OpenAI, OpenRouter allow it) so text appears as it
+    // is written. An endpoint that blocks the app's WebView (CORS) falls back to native HTTP, remembered.
+    if (native && NO_STREAM.has(base)) return nativeOnce();
 
     let res: Response;
     try {
       res = await fetchWithRetry(url, { method: "POST", headers, body: JSON.stringify(body), signal });
     } catch (e) {
       if (signal?.aborted) throw new EngineError("aborted", "Stopped.");
+      if (native) {
+        NO_STREAM.add(base);
+        return nativeOnce();
+      }
       throw new EngineError(
         isLocal ? "cors" : "network",
         isLocal
