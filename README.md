@@ -434,7 +434,7 @@ If the alias is not `insan`: `gh variable set ANDROID_KEY_ALIAS --body <alias>`.
 
 ### In-app updates
 
-On start, the app checks the latest GitHub release (`src/update/release.ts`; public API, no key) and shows a bar when a newer version exists. *Later* hides it for a day.
+The app checks the latest GitHub release (`src/update/release.ts`; public API, no key) when it starts and again each time it comes back to the front (at most every 10 minutes), and shows a bar when a newer version exists. *Later* hides it for a day. *Settings → Updates → Check for updates* checks right away, even after *Later*.
 
 - **Android (APK from GitHub):** *Update now* downloads `Insan-X.Y.Z-android.apk` inside the app (`AppUpdatePlugin.java`) and opens Android's installer. The first time, Android asks you to allow *Install unknown apps* for Insan. Only this repository's release assets are downloaded, and Android only installs an APK signed with the same key, so a **signed release** (the secrets above) is required. Debug APKs from CI are signed with a different throwaway key on every run and cannot update each other. Installs from Google Play never show the bar, because Play updates them. Play does not allow the `REQUEST_INSTALL_PACKAGES` permission for an app like this, so remove it from the manifest before uploading an AAB there.
 - **Windows (Insan-Setup):** *Update now* asks the local server (`/api/update`, active only inside `InsanServer.exe`) to download that release's `Insan-Setup-X.Y.Z.exe` and run it silently. The setup replaces the app and starts the new server, and the open window reloads by itself.

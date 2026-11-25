@@ -10,6 +10,7 @@ import { fmt, type Strings, type UILang } from "./i18n";
 import { resetHistoryHandle } from "./history";
 import { IconAlert, IconCheck } from "./Icons";
 import { keyFor, panicWipe, useStore, type Theme } from "./store";
+import { APP_VERSION, checkForUpdates, type CheckResult } from "./UpdateBanner";
 
 const ENDPOINTS = [
   { label: "Gemini (free key)", url: GEMINI.baseUrl, model: GEMINI.model, noThink: false },
@@ -27,6 +28,7 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
   const s = useStore();
   const d = DSTRINGS[s.uiLang];
   const [show, setShow] = useState(false);
+  const [upd, setUpd] = useState<CheckResult | "busy" | null>(null);
   const [test, setTest] = useState<{ state: "idle" | "busy" | "ok" | "err"; msg?: string }>({ state: "idle" });
   const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
   const [detTest, setDetTest] = useState<Record<string, { state: "busy" | "ok" | "err"; msg?: string } | undefined>>({});
@@ -318,6 +320,28 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
               <option value="dark">{t.themeDark}</option>
             </select>
           </label>
+        </div>
+
+        <div className="section-title">{t.updates}</div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ fontWeight: 600 }}>{fmt(t.versionLabel, { v: APP_VERSION })}</div>
+            <div className="help" role="status" aria-live="polite">
+              {upd === "busy" ? t.updChecking : upd === "latest" ? t.updLatest : upd === "found" ? t.updFound : upd === "offline" ? t.updOffline : upd === "web" ? t.updWeb : t.updAuto}
+            </div>
+          </div>
+          <button
+            className="btn btn-line"
+            disabled={upd === "busy"}
+            onClick={async () => {
+              setUpd("busy");
+              const r = await checkForUpdates();
+              setUpd(r);
+              if (r === "found") setTimeout(onClose, 700); // the update bar is on the main screen
+            }}
+          >
+            {t.updCheck}
+          </button>
         </div>
 
         <div className="section-title">{t.privacy}</div>

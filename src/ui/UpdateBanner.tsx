@@ -37,6 +37,20 @@ async function detectChannel(): Promise<Channel | null> {
 
 const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));
 
+/** Result of a check: "found" shows the bar; "web" = the web version, which is always the latest build. */
+export type CheckResult = "found" | "latest" | "offline" | "web";
+
+// the mounted banner registers its check here, so Settings can run one on demand
+let runCheck: ((manual: boolean) => Promise<CheckResult>) | null = null;
+
+/** "Check for updates" button: checks now, even if the user chose "Later" for this version. */
+export function checkForUpdates(): Promise<CheckResult> {
+  return runCheck ? runCheck(true) : Promise.resolve("offline");
+}
+
+/** Coming back to the app re-checks, at most this often. */
+const RECHECK = 10 * 60 * 1000;
+
 export function UpdateBanner({ t }: { t: Strings }) {
   const [rel, setRel] = useState<Release | null>(null);
   const [channel, setChannel] = useState<Channel | null>(null);
@@ -44,21 +58,44 @@ export function UpdateBanner({ t }: { t: Strings }) {
   const [pct, setPct] = useState(0);
   const [hidden, setHidden] = useState(false);
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const busyRef = useRef(false); // downloading or installing: never replace the bar under the user
+  const channelRef = useRef<Channel | null | undefined>(undefined);
+  const lastCheck = useRef(0);
 
   useEffect(() => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const ac = new AbortController();
-    (async () => {
-      const ch = await detectChannel();
-      if (!ch) return;
-      const r = await fetchLatest(ac.signal).catch(() => null);
-      if (!r || !isNewer(r.version, APP_VERSION) || snoozed(r.version)) return;
-      if ((ch === "android" && !r.apk) || (ch === "pc" && !r.exe)) return; // assets still uploading
-      setChannel(ch);
-      setRel(r);
-    })();
+    const check = async (manual: boolean): Promise<CheckResult> => {
+      lastCheck.current = Date.now();
+      if (channelRef.current === undefined) channelRef.current = await detectChannel();
+      const ch = channelRef.current;
+      if (!ch) return "web";
+      if (typeof navigator !== "undefined" && !navigator.onLine) return "offline";
+      const r = await fetchLatest(ac.signal).catch(() => undefined);
+      if (r === undefined) return "offline";
+      if (!r || !isNewer(r.version, APP_VERSION)) return "latest";
+      if ((ch === "android" && !r.apk) || (ch === "pc" && !r.exe)) return "latest"; // files still uploading
+      if (!manual && snoozed(r.version)) return "found";
+      if (!busyRef.current) {
+        setChannel(ch);
+        setRel(r);
+        setPhase("available");
+        setHidden(false);
+      }
+      return "found";
+    };
+    runCheck = check;
+    void check(false);
+    // every time Insan comes back to the front (phone app resumed, PC tab focused), look again
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastCheck.current > RECHECK) void check(false);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onVisible);
     return () => {
+      runCheck = null;
       ac.abort();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onVisible);
       if (poll.current) clearInterval(poll.current);
     };
   }, []);
@@ -109,6 +146,7 @@ export function UpdateBanner({ t }: { t: Strings }) {
   };
 
   const working = phase === "downloading" || phase === "installing";
+  busyRef.current = working;
   const msg =
     phase === "downloading"
       ? channel === "pc"
