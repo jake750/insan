@@ -118,9 +118,9 @@ src/
 ```
 
 1. **Analyse.** The language is detected locally. Code, URLs, emails and citations such as `[3]` or `(Smith, 2020)` are swapped for opaque placeholders (`⟦P0⟧`), so the model never sees them and cannot alter them. A short model call returns the register, the domain, names and terms to keep, and terminology notes. Any "keep" item that is not literally in the source is dropped.
-2. **Rewrite.** The text is split at paragraph boundaries. Fenced code stays whole and headings travel with the paragraph that follows them. Chunks are about 900 words for Claude and 450 for small local models. Each chunk gets the same system prompt plus the last two rewritten paragraphs, so tone and terms stay consistent. Output streams live.
+2. **Rewrite.** The text is split at paragraph boundaries. Fenced code stays whole and headings travel with the paragraph that follows them. Chunks are about 900 words for Claude and Gemini and 450 for other models (small local ones especially). Each chunk gets the same system prompt plus the last two rewritten paragraphs, so tone and terms stay consistent. Output streams live.
 3. **Verify.** A local check confirms that every number (Arabic-Indic digits included), quotation, locked term and placeholder survived. A second model pass compares original and rewrite and reports anything *added*, *lost*, *changed* or *protected*.
-4. **Repair.** If any issue is found, a minimal-edit repair pass fixes only those points. Whatever the local check still finds missing after repair is shown to you, never hidden.
+4. **Repair.** If any issue is found, a minimal-edit repair pass fixes only those points. Whatever the local check still finds missing after repair is shown to you, never hidden. A badge after every rewrite says *Meaning kept*; tap it to see exactly what was found and fixed, what still needs your eye, and which numbers, names and quotes were checked.
 5. **Polish.** Runs last, so the repair pass can't bring tells back. A local check (`src/engine/style.ts`, no network) looks at each rewritten part for stock phrases, stock connectors at the start of sentences, flat sentence rhythm (lengths that barely vary) and two sentences in a row starting with the same word. If it finds any, a short model call (at most two rounds) gets the exact list ("replace \"Moreover\"", "sentences are 15, 16, 15, 17 words: vary them") and fixes only those. The polished version is kept only if it keeps every placeholder, stays within 75–135% of the length loses no protected item and has fewer tells; otherwise the first rewrite stays. Turn it off in Tune → *Style polish*.
 
 ### Tuning the prompts
@@ -142,7 +142,7 @@ The local stock-phrase detector, which feeds the report and the highlighting, ha
 **Options**
 - 14 modes: Standard, Fluent, Academic, Formal, Casual, Creative, Simple, Expand, Shorten, Persuasive, Story, Technical, Marketing, Conversational.
 - Intensity slider; tone sliders for formality, warmth, confidence and emotion; reading level from grade 6 to expert.
-- Audience field; *Write like this sample* (voice imitation).
+- Audience field; *Your style fingerprint*: paste some of your own writing once, the model writes a short profile of how you write (rhythm, words, punctuation, voice, plus a few excerpts), and every rewrite follows it. You can see, relearn, switch off or delete it.
 - Language variant: EN US/UK, FR France/Maghreb, AR MSA/Tunisian/Egyptian/Gulf.
 - Locked words, glossary (`original => preferred`), banned words, keep formatting, and the meaning check on or off.
 - Presets: save and apply named option sets.
@@ -236,6 +236,7 @@ Raw AI = the built-in sample paragraph (typical ChatGPT style). Humanized = the 
 - The service worker caches only the app's own static files, never API traffic or your text.
 - **Panic wipe** (Settings) erases the key, settings, presets, history (IndexedDB) and caches.
 - AI detectors are off by default. One you turn on receives the text only when you press *Check AI %* (or after a rewrite if auto-check is on).
+- Keys for OpenAI-compatible services are saved per endpoint, so switching between Gemini, OpenAI and OpenRouter keeps each key.
 - In the Android/iOS app, keys are kept in the Android Keystore / iOS Keychain (`@aparajita/capacitor-secure-storage`), not in WebView storage.
 
 ## Theme
@@ -282,7 +283,7 @@ npm run android:build
 
 Signed release builds: `android/app/build/outputs/apk/release/app-release.apk` (install directly) and `android/app/build/outputs/bundle/release/app-release.aab` (Google Play). For a quick unsigned test build, run `npm run native:build`, then `./gradlew assembleDebug` inside `android/`, and install `android/app/build/outputs/apk/debug/app-debug.apk`.
 
-The app is the same static UI (`CAP=1 next build` writes `.next-native/`, without the web-only proxy route). Native extras: model and detector calls through native HTTP (no CORS problems), keys in the Keystore, *Share → Insan* from any app (`ACTION_SEND text/plain`), native clipboard, haptics, violet status/navigation bars, adaptive icon and splash.
+The app is the same static UI (`CAP=1 next build` writes `.next-native/`, without the web-only proxy route). Native extras: model and detector calls through native HTTP (no CORS problems), keys in the Keystore, *Share → Insan* from any app (`ACTION_SEND text/plain`), *Humanize with Insan* in any app's text-selection menu (`ACTION_PROCESS_TEXT`: it rewrites the selection and puts it back in place, or offers to copy it when the app is read-only), native clipboard, haptics, violet status/navigation bars, adaptive icon and splash.
 
 **Signing (once).** Keep the keystore file and its passwords safe: without them you can't publish updates to the same Play listing.
 

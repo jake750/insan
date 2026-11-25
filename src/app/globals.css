@@ -656,3 +656,18 @@ html[lang=ar] :is(p, h1, h2, h3, label, summary, button, a, span, li, .help, .fi
 .adv > summary::-webkit-details-marker { display: none; }
 .adv > summary::before { content: "›"; font-size: 18px; transition: transform 0.2s; }
 .adv[open] > summary::before { transform: rotate(90deg); }
+
+/* meaning-kept badge and its report */
+.meaning-chip { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; color: var(--brand-text); border-color: currentColor; cursor: pointer; font-family: inherit; transition: transform .15s ease; }
+.meaning-chip[data-v="warn"] { color: var(--warn); }
+.meaning-chip:active { transform: scale(.96); }
+.meaning-report { margin: 8px 16px 0; align-items: flex-start; animation: meaning-in .2s ease-out; }
+.meaning-report p { margin: 0 0 6px; }
+.meaning-report ul { margin: 0 0 8px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.meaning-report li .chip { margin-inline-end: 6px; }
+@keyframes meaning-in { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .meaning-report { animation: none; } }
+/* style fingerprint */
+.style-print { display: grid; gap: 8px; }
+.style-profile summary { cursor: pointer; font-size: 13px; color: var(--brand-text); }
+.style-profile > div { white-space: pre-wrap; font-size: 13px; line-height: 1.6; margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: var(--sheet-2); border: 1px solid var(--line); max-height: 260px; overflow: auto; }

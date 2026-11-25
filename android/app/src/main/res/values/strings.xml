@@ -3,5 +3,6 @@
     <string name="app_name">Insan</string>
     <string name="title_activity_main">Insan</string>
     <string name="package_name">app.insan.humanizer</string>
+    <string name="process_text_label">Humanize with Insan</string>
     <string name="custom_url_scheme">app.insan.humanizer</string>
 </resources>

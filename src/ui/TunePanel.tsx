@@ -1,9 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { DEFAULT_OPTIONS, READING_LEVELS, VARIANTS, type Tone } from "../engine/types";
-import { LEVEL_LABELS, MODE_LABELS, VARIANT_LABELS, type Strings, type UILang } from "./i18n";
+import { LEVEL_LABELS, MODE_LABELS, VARIANT_LABELS, fmt, type Strings, type UILang } from "./i18n";
 import { IconTrash, IconX } from "./Icons";
 import { useStore } from "./store";
+import { STYLE_MIN_WORDS, learnStyle } from "../engine/fingerprint";
+import { EngineError } from "../engine/types";
+import { wordCount } from "../engine/text";
 
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
 
@@ -80,10 +83,7 @@ export function TunePanel({ t, ui, onClose, embedded }: { t: Strings; ui: UILang
           <input className="input" value={options.audience} placeholder={t.audiencePh} onChange={(e) => setOptions({ audience: e.target.value })} />
         </label>
 
-        <label>
-          <span className="field-label">{t.voiceSample}</span>
-          <textarea className="textarea" dir="auto" rows={4} value={options.voiceSample} placeholder={t.voiceSamplePh} onChange={(e) => setOptions({ voiceSample: e.target.value })} />
-        </label>
+        <StyleSection t={t} />
 
         <label>
           <span className="field-label">{t.locked}</span>
@@ -197,5 +197,76 @@ export function TunePanel({ t, ui, onClose, embedded }: { t: Strings; ui: UILang
         </button>
       </div>
     </aside>
+  );
+}
+
+/** "Your style fingerprint": paste your own texts once; Insan learns how you write and uses it in every rewrite. */
+function StyleSection({ t }: { t: Strings }) {
+  const { options, setOptions, style, set } = useStore();
+  const [state, setState] = useState<{ busy: boolean; err: string }>({ busy: false, err: "" });
+  const [open, setOpen] = useState(!style.profile);
+  const ac = useRef<AbortController | null>(null);
+  const words = wordCount(options.voiceSample);
+
+  const learn = async () => {
+    setState({ busy: true, err: "" });
+    ac.current = new AbortController();
+    try {
+      const profile = await learnStyle(useStore.getState().providerConfig(), options.voiceSample, ac.current.signal);
+      set({ style: { profile, on: true, learnedAt: Date.now() } });
+      setOpen(false);
+      setState({ busy: false, err: "" });
+    } catch (e) {
+      const err = e instanceof EngineError ? (e.code === "aborted" ? "" : e.code === "no_key" || e.code === "auth" ? t.styleNoModel : e.message) : String(e);
+      setState({ busy: false, err });
+    }
+  };
+
+  return (
+    <section className="style-print" aria-label={t.styleTitle}>
+      <span className="field-label">{t.styleTitle}</span>
+      {style.profile ? (
+        <>
+          <label className="check">
+            <input type="checkbox" checked={style.on} onChange={(e) => set({ style: { ...style, on: e.target.checked } })} />
+            <span>{t.styleOn}</span>
+          </label>
+          <details className="style-profile">
+            <summary>{t.styleSee}</summary>
+            <div dir="auto">{style.profile}</div>
+          </details>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button className="btn btn-line" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{t.styleRelearn}</button>
+            <button className="btn" onClick={() => set({ style: { profile: "", on: true, learnedAt: 0 } })}>
+              <IconTrash size={15} /> {t.styleDelete}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="help">{t.styleIntro}</div>
+      )}
+      {open && (
+        <>
+          <textarea
+            className="textarea"
+            dir="auto"
+            rows={5}
+            value={options.voiceSample}
+            placeholder={t.stylePh}
+            aria-label={t.stylePh}
+            onChange={(e) => setOptions({ voiceSample: e.target.value })}
+          />
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {state.busy ? (
+              <button className="btn btn-line" onClick={() => ac.current?.abort()}>{t.styleLearning}</button>
+            ) : (
+              <button className="btn btn-primary" onClick={learn} disabled={words < STYLE_MIN_WORDS}>{t.styleLearn}</button>
+            )}
+            <span className="help">{words < STYLE_MIN_WORDS ? fmt(t.styleNeed, { n: STYLE_MIN_WORDS - words }) : fmt(t.styleWords, { n: words })}</span>
+          </div>
+        </>
+      )}
+      {state.err && <div className="help" role="alert" style={{ color: "var(--warn)" }}>{state.err}</div>}
+    </section>
   );
 }

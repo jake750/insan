@@ -73,6 +73,8 @@ export interface RewriteOptions {
   readingLevel: ReadingLevel;
   audience: string;
   voiceSample: string;
+  /** The user's saved style fingerprint (see style.ts), added at rewrite time; never stored in presets. */
+  styleProfile?: string;
   variant: Variant;
   locked: string[];
   glossary: GlossaryEntry[];
@@ -121,6 +123,10 @@ export interface ProviderConfig {
 /** Google's OpenAI-compatible Gemini endpoint; a free key comes from Google AI Studio in about a minute. */
 export const GEMINI = { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-flash-latest", keyUrl: "https://aistudio.google.com/apikey" } as const;
 
+/** Words per chunk: Claude and Gemini keep a long context well, so they get bigger chunks (fewer seams, fewer calls). */
+export const chunkWords = (p: Pick<ProviderConfig, "kind" | "baseUrl">) =>
+  p.kind === "anthropic" || p.baseUrl.trim().toLowerCase().startsWith(GEMINI.baseUrl) ? 900 : 450;
+
 /** Local servers (Ollama, LM Studio) work without an API key. */
 export const isLocalEndpoint = (baseUrl: string) => /\/\/(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(baseUrl.trim() + "/");
 
@@ -149,7 +155,8 @@ export interface DocBrief {
 }
 
 export interface VerifyIssue {
-  kind: "added" | "lost" | "changed" | "protected";
+  /** "structure": paragraphs differ from the source (found locally, not by the model) */
+  kind: "added" | "lost" | "changed" | "protected" | "structure";
   detail: string;
 }
 
@@ -157,8 +164,13 @@ export interface ChunkResult {
   index: number;
   original: string;
   rewritten: string;
+  /** what is still wrong after repair */
   issues: VerifyIssue[];
   repaired: boolean;
+  /** what the checks found and the repair pass fixed */
+  fixed?: VerifyIssue[];
+  /** numbers, names, quotes and locked terms checked to be present in the rewrite */
+  kept?: string[];
 }
 
 export type PipelineStage = "analyzing" | "rewriting" | "polishing" | "verifying" | "repairing" | "done";

@@ -206,6 +206,14 @@ ${AI_PATTERNS[lang]}`);
     if (brief.terminology.length) lines.push(`Keep terminology consistent:\n${brief.terminology.map((t) => `- ${t}`).join("\n")}`);
   }
 
+  if (opts.styleProfile?.trim()) {
+    lines.push(`\n## Write in the user's own style
+This is the user's style fingerprint, learned from their own writing. Write the rewrite the way this person writes: follow every habit it names (sentence rhythm, word choice, punctuation, voice) and avoid what it says they never do. The examples show the style only; do NOT copy their content or topic. Meaning and facts still come only from the source.
+<style_fingerprint>
+${opts.styleProfile.trim().slice(0, 4000)}
+</style_fingerprint>`);
+  }
+
   if (opts.voiceSample.trim()) {
     lines.push(`\n## Write in this person's voice
 Below is a sample of the user's own writing. Imitate its voice — sentence rhythm, typical sentence length, word choice, punctuation habits, level of formality, how it opens and closes points. Do NOT copy its content or topic.
@@ -252,7 +260,7 @@ Report:
 - "changed": something whose meaning changed (negation flipped, quantity/strength altered, cause/effect reversed, who-did-what swapped).
 - "protected": a protected item that is not reproduced verbatim.
 Paraphrase, reordering, tone and style changes are NOT issues. Mode-appropriate length change is not an issue unless content is lost or invented.
-Reply with ONLY a JSON object, no code fences: {"issues":[{"kind":"added|lost|changed|protected","detail":"short, specific"}]}. Use an empty array when meaning is preserved.`;
+Reply with ONLY a JSON object, no code fences: {"issues":[{"kind":"added|lost|changed|protected","detail":"short, specific, quoting the words involved"}]}. Write each detail in the language of the ORIGINAL. Use an empty array when meaning is preserved.`;
 
 export function buildVerifyUser(original: string, rewrite: string, protectedItems: string[]): string {
   const p = protectedItems.length ? `\n<protected>\n${protectedItems.join("\n")}\n</protected>` : "";

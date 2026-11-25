@@ -24,6 +24,15 @@ interface Persisted {
   presets: Preset[];
   onboarded: boolean;
   detect: DetectSettings;
+  style: StyleFingerprint;
+}
+
+/** "بصمة أسلوبك": a profile of how the user writes, learned once from their own texts. */
+export interface StyleFingerprint {
+  profile: string;
+  /** use it in every rewrite */
+  on: boolean;
+  learnedAt: number;
 }
 
 export interface DetectSettings {
@@ -37,8 +46,28 @@ export interface DetectSettings {
   enabled: Record<string, boolean>;
 }
 
-export type Keys = { anthropic: string; openai: string; det: Record<string, Record<string, string>> };
-const NO_KEYS = (): Keys => ({ anthropic: "", openai: "", det: {} });
+/**
+ * Saved keys. OpenAI-compatible keys are kept per endpoint (Gemini, OpenAI, OpenRouter…), so switching
+ * services never loses or reuses a key. `openai` is the pre-1.4 single key, moved to its endpoint on load.
+ */
+export type Keys = { anthropic: string; openai: string; endpoints: Record<string, string>; det: Record<string, Record<string, string>> };
+const NO_KEYS = (): Keys => ({ anthropic: "", openai: "", endpoints: {}, det: {} });
+
+/** The key slot of an OpenAI-compatible endpoint: its URL without case or trailing slash. */
+export const endpointId = (baseUrl: string) => baseUrl.trim().replace(/\/+$/, "").toLowerCase();
+
+/** The key saved for this provider (Anthropic, or the selected OpenAI-compatible endpoint). */
+export function keyFor(keys: Keys, p: Pick<ProviderConfig, "kind" | "baseUrl">): string {
+  return p.kind === "anthropic" ? keys.anthropic : (keys.endpoints[endpointId(p.baseUrl)] ?? "");
+}
+
+/** Read saved keys, moving an old single OpenAI-compatible key to the endpoint it was used with. */
+function loadKeys(k: Partial<Keys> | null, baseUrl: string): Keys {
+  const endpoints = { ...(k?.endpoints ?? {}) };
+  const id = endpointId(baseUrl);
+  if (k?.openai && !endpoints[id]) endpoints[id] = k.openai;
+  return { anthropic: k?.anthropic ?? "", openai: "", endpoints, det: k?.det ?? {} };
+}
 
 interface State extends Persisted {
   keys: Keys;
@@ -51,6 +80,8 @@ interface State extends Persisted {
   set: (p: Partial<Persisted>) => void;
   hydrate: () => void;
   providerConfig: () => ProviderConfig;
+  /** options for a rewrite: the saved style fingerprint replaces the raw sample once learned */
+  rewriteOptions: () => RewriteOptions;
 }
 
 const SETTINGS_KEY = "insan.settings";
@@ -79,6 +110,7 @@ const defaults = (): Persisted => ({
   presets: [],
   onboarded: false,
   detect: { autoCheck: true, judge: false, threshold: 60, enabled: {} },
+  style: { profile: "", on: true, learnedAt: 0 },
 });
 
 let lastSecure = "";
@@ -109,6 +141,7 @@ function persist(s: State) {
     presets: s.presets,
     onboarded: s.onboarded,
     detect: s.detect,
+    style: s.style,
   };
   safe(() => localStorage.setItem(SETTINGS_KEY, JSON.stringify(p)), undefined);
   const keys = JSON.stringify(s.keys);
@@ -141,7 +174,12 @@ export const useStore = create<State>((set, get) => ({
   hydrated: false,
   setOptions: (p) => set((s) => ({ options: { ...s.options, ...p } })),
   setProvider: (p) => set((s) => ({ provider: { ...s.provider, ...p } })),
-  setKey: (kind, key) => set((s) => ({ keys: { ...s.keys, [kind]: key } })),
+  setKey: (kind, key) =>
+    set((s) =>
+      kind === "anthropic"
+        ? { keys: { ...s.keys, anthropic: key } }
+        : { keys: { ...s.keys, endpoints: { ...s.keys.endpoints, [endpointId(s.provider.baseUrl)]: key } } },
+    ),
   setDetKey: (id, field, value) => set((s) => ({ keys: { ...s.keys, det: { ...s.keys.det, [id]: { ...s.keys.det[id], [field]: value } } } })),
   setDetect: (p) => set((s) => ({ detect: { ...s.detect, ...p } })),
   set: (p) => set(p),
@@ -158,22 +196,28 @@ export const useStore = create<State>((set, get) => ({
       options: { ...d.options, ...(saved?.options ?? {}), tone: { ...d.options.tone, ...(saved?.options?.tone ?? {}) } },
       provider: { ...d.provider, ...(saved?.provider ?? {}) },
       detect: { ...d.detect, ...(saved?.detect ?? {}), enabled: { ...(saved?.detect?.enabled ?? {}) } },
-      keys: { anthropic: keys?.anthropic ?? "", openai: keys?.openai ?? "", det: keys?.det ?? {} },
+      style: { ...d.style, ...(saved?.style ?? {}) },
+      keys: loadKeys(keys, { ...d.provider, ...(saved?.provider ?? {}) }.baseUrl),
       hydrated: true,
     });
     if (isNative()) {
       void secureGet().then((raw) => {
         const k = safe(() => JSON.parse(raw ?? "null"), null) as Partial<Keys> | null;
-        const merged: Keys = { anthropic: k?.anthropic ?? "", openai: k?.openai ?? "", det: k?.det ?? {} };
-        lastSecure = JSON.stringify(merged);
+        const merged = loadKeys(k, get().provider.baseUrl);
+        lastSecure = JSON.stringify(k ? k : merged);
         secureReady = true;
-        if (k) set({ keys: merged });
+        if (k) set({ keys: merged }); // the subscription writes it back if the old single key was moved
       });
     }
   },
   providerConfig: () => {
     const s = get();
-    return { ...s.provider, apiKey: s.keys[s.provider.kind] };
+    return { ...s.provider, apiKey: keyFor(s.keys, s.provider) };
+  },
+  rewriteOptions: () => {
+    const { options, style } = get();
+    if (!style.profile) return options; // not learned yet: the raw sample (if any) is used as before
+    return { ...options, voiceSample: "", styleProfile: style.on ? style.profile : "" };
   },
 }));
 

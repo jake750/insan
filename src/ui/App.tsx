@@ -3,7 +3,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { analyzeText } from "../analysis/metrics";
 import { ADAPTERS, type DetectionResult } from "../detection";
 import { detectLocal } from "../detection/local";
-import { haptic, hideSplash, isNative, nativeCopy, onSharedText, shareText, themeSystemBars } from "../native";
+import { finishProcessText, getProcessText, haptic, hideSplash, isNative, nativeCopy, onSharedText, shareText, themeSystemBars } from "../native";
 import { DetectReport, reasonText } from "./detect/DetectReport";
 import { ScoreCard, ScorePill } from "./detect/ScoreCard";
 import { DSTRINGS } from "./detect/strings";
@@ -12,13 +12,19 @@ import { Sheet } from "./Sheet";
 import { buildDoc, docText, findSeg, replaceParagraph, updateSeg, type Doc } from "../engine/doc";
 import { alternatives, runPipeline } from "../engine/pipeline";
 import { detectLang, wordCount } from "../engine/text";
-import { EngineError, GEMINI, MODES, isLocalEndpoint, type DocBrief, type Mode, type PipelineStage } from "../engine/types";
+import { EngineError, GEMINI, MODES, chunkWords, isLocalEndpoint, type DocBrief, type Mode, type PipelineStage, type VerifyIssue } from "../engine/types";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { Dialog } from "./Dialog";
 import { copyText, esc, exportDocx, exportPdf, exportText, importFile } from "./files";
 import { addHistory, type HistoryItem } from "./history";
 import { HistoryDialog } from "./HistoryDialog";
-import { MODE_HINTS, MODE_LABELS, STRINGS, fmt, type UILang } from "./i18n";
+import { MODE_HINTS, MODE_LABELS, STRINGS, fmt, type Strings, type UILang } from "./i18n";
+
+/** Short label for one meaning-check finding; a protected item is "restored" once fixed, "missing" while not. */
+function issueLabel(t: Strings, kind: VerifyIssue["kind"], fixed: boolean): string {
+  if (kind === "protected") return fixed ? t.issueRestored : t.issueMissing;
+  return { added: t.issueAdded, lost: t.issueLost, changed: t.issueChanged, structure: t.issueParas }[kind];
+}
 import {
   IconAlert,
   IconCheck,
@@ -44,6 +50,7 @@ import {
   IconTrash,
   IconUndo,
   IconUpload,
+  IconX,
   Logo,
   PulseLine,
 } from "./Icons";
@@ -52,7 +59,7 @@ import { OutputView } from "./OutputView";
 import { ReportPanel } from "./Report";
 import { SAMPLES } from "./samples";
 import { SettingsDialog } from "./SettingsDialog";
-import { useStore } from "./store";
+import { keyFor, useStore } from "./store";
 import { TunePanel } from "./TunePanel";
 import { UpdateBanner } from "./UpdateBanner";
 
@@ -86,7 +93,8 @@ export default function App() {
   const [retryIn, setRetryIn] = useState(0);
   const [brief, setBrief] = useState<DocBrief | null>(null);
   const [verdict, setVerdict] = useState<"ok" | "repaired" | "warn" | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [meaning, setMeaning] = useState<{ fixed: VerifyIssue[]; left: VerifyIssue[]; kept: string[]; full: boolean } | null>(null);
+  const [meaningOpen, setMeaningOpen] = useState(false);
   const [view, setView] = useState<"clean" | "diff">("clean");
   const [editing, setEditing] = useState<string | null>(null);
   const [pop, setPop] = useState<Pop | null>(null);
@@ -94,6 +102,9 @@ export default function App() {
   const [dialog, setDialog] = useState<"settings" | "history" | "palette" | "shortcuts" | null>(null);
   const [tuneOpen, setTuneOpen] = useState(false);
   const [tab, setTab] = useState<"input" | "output" | "diff">("input");
+  // opened from another app's text-selection menu (Android): rewrite the selection, then hand it back
+  const [proc, setProc] = useState<{ readOnly: boolean } | null>(null);
+  const procRan = useRef(false);
   const [showHeat, setShowHeat] = useState(true);
   const [reportOpen, setReportOpen] = useState(false);
   const [locked, setLocked] = useState<Set<string>>(new Set());
@@ -138,6 +149,12 @@ export default function App() {
     if (q.get("action") === "new") setInput("");
     if (q.get("action") === "check") pendingCheck.current = true;
     if (q.toString()) history.replaceState(null, "", location.pathname);
+    void getProcessText().then((p) => {
+      if (!p) return;
+      setInput(p.text);
+      setTab("output");
+      setProc({ readOnly: p.readOnly });
+    });
     let off = () => {};
     onSharedText((txt) => {
       setInput(txt);
@@ -238,7 +255,7 @@ export default function App() {
   const busy = run !== null || rehum !== null;
   busyRef.current = busy;
   const remoteNeedsKey = provider.kind === "anthropic" || !isLocalEndpoint(provider.baseUrl);
-  const hasModel = !remoteNeedsKey || !!keys[provider.kind].trim();
+  const hasModel = !remoteNeedsKey || !!keyFor(keys, provider).trim();
   // first run: a free Gemini key pasted right here, no trip to Settings
   const [quickKey, setQuickKey] = useState("");
   const startGemini = () => {
@@ -247,7 +264,7 @@ export default function App() {
     store.setKey("openai", quickKey.trim());
     setQuickKey("");
   };
-  const parts = Math.ceil(words / (provider.kind === "anthropic" ? 900 : 450));
+  const parts = Math.ceil(words / chunkWords(provider));
 
   const errText = useCallback(
     (e: unknown) => {
@@ -293,7 +310,8 @@ export default function App() {
     setPop(null);
     setEditing(null);
     setVerdict(null);
-    setWarnings([]);
+    setMeaning(null);
+    setMeaningOpen(false);
     setTab("output");
     const ac = new AbortController();
     abortRef.current = ac;
@@ -303,7 +321,7 @@ export default function App() {
     try {
       const res = await runPipeline({
         input,
-        options,
+        options: store.rewriteOptions(),
         provider: store.providerConfig(),
         signal: ac.signal,
         onEvent: (e) => {
@@ -319,9 +337,10 @@ export default function App() {
       setLocked(new Set());
       haptic("success");
       if (useStore.getState().detect.autoCheck && det.hasRemote()) det.run({ input, output: res.output });
-      const left = res.chunks.flatMap((c) => c.issues.map((i) => i.detail));
-      setWarnings(left);
-      setVerdict(left.length ? "warn" : res.chunks.some((c) => c.repaired) ? "repaired" : options.verify ? "ok" : null);
+      const left = res.chunks.flatMap((c) => c.issues);
+      const fixed = res.chunks.flatMap((c) => c.fixed ?? []);
+      setMeaning({ fixed, left, kept: [...new Set(res.chunks.flatMap((c) => c.kept ?? []))], full: options.verify });
+      setVerdict(left.length ? "warn" : fixed.length ? "repaired" : "ok");
       if (useStore.getState().saveHistory) addHistory({ input, output: res.output, mode: options.mode, lang, scoreIn: detectLocal(input, lang).score, scoreOut: detectLocal(res.output, lang).score }).catch(() => {});
     } catch (e) {
       const err = e instanceof EngineError ? e : new EngineError("unknown", e instanceof Error ? e.message : String(e));
@@ -336,6 +355,13 @@ export default function App() {
   }, [busy, input, hasModel, options, store, commit, lang, det]);
 
   const stop = useCallback(() => abortRef.current?.abort(), []);
+
+  // selection from another app: start right away, no extra tap
+  useEffect(() => {
+    if (!proc || procRan.current || !input.trim()) return;
+    procRan.current = true;
+    void humanize();
+  }, [proc, input, humanize]);
 
   // follow the live stream, unless the reader has scrolled up to read
   useEffect(() => {
@@ -355,7 +381,7 @@ export default function App() {
     async (unit: "sentence" | "paragraph", target: string, beforeText: string, afterText: string) => {
       setAlts("loading");
       try {
-        const list = await alternatives({ target, before: beforeText, after: afterText, unit, options, provider: store.providerConfig(), brief });
+        const list = await alternatives({ target, before: beforeText, after: afterText, unit, options: store.rewriteOptions(), provider: store.providerConfig(), brief });
         setAlts(list.length ? list : { error: t.err_unknown.replace("{m}", "no alternatives") });
       } catch (e) {
         setAlts({ error: errText(e) });
@@ -455,7 +481,7 @@ export default function App() {
         before: flat.slice(Math.max(0, i - 4), i).map((x) => x.text).join(" "),
         after: flat.slice(i + 1, i + 5).map((x) => x.text).join(" "),
         unit: "sentence",
-        options: { ...options, intensity: Math.max(4, options.intensity) },
+        options: { ...store.rewriteOptions(), intensity: Math.max(4, options.intensity) },
         provider: store.providerConfig(),
         brief,
       });
@@ -715,7 +741,51 @@ export default function App() {
           <IconOffline size={16} /> {d.offline}
         </div>
       )}
-      <UpdateBanner t={t} />
+      {proc ? (
+        <div className="update-bar proc-bar" role="region" aria-label={t.procTitle}>
+          <Logo size={22} busy={busy} />
+          <div className="update-text">
+            <span>{busy ? t.procWorking : outputText.trim() ? (proc.readOnly ? t.procReadOnly : t.procReady) : t.procTitle}</span>
+          </div>
+          <div className="update-actions">
+            {proc.readOnly ? (
+              <button
+                className="btn btn-primary"
+                disabled={busy || !outputText.trim()}
+                onClick={async () => {
+                  if (!(await nativeCopy(outputText))) await copyText(outputText);
+                  haptic("success");
+                  void finishProcessText();
+                }}
+              >
+                <IconCopy size={16} /> {t.procCopy}
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                disabled={busy || !outputText.trim()}
+                onClick={() => {
+                  haptic("success");
+                  void finishProcessText(outputText);
+                }}
+              >
+                <IconCheck size={16} /> {t.procReplace}
+              </button>
+            )}
+            <button
+              className="btn"
+              onClick={() => {
+                stop();
+                void finishProcessText();
+              }}
+            >
+              {t.procCancel}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <UpdateBanner t={t} />
+      )}
 
       <div className="modebar">
         <div className="modes" role="toolbar" aria-label={t.modes}>
@@ -810,15 +880,23 @@ export default function App() {
           <div className="pane-head">
             <div className="pane-title">
               {t.rewrite}
-              {verdict && !busy && (
-                <span
-                  className="chip"
-                  style={{ color: verdict === "warn" ? "var(--warn)" : "var(--brand-text)", borderColor: "currentColor", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500 }}
-                  title={warnings.join("\n")}
+              {verdict && meaning && !busy && (
+                <button
+                  className="chip meaning-chip"
+                  data-v={verdict}
+                  onClick={() => setMeaningOpen((o) => !o)}
+                  aria-expanded={meaningOpen}
+                  aria-controls="meaning-report"
                 >
                   {verdict === "warn" ? <IconAlert size={13} /> : <IconCheck size={13} />}
-                  <span className="hide-sm">{verdict === "ok" ? t.verifiedOk : verdict === "repaired" ? t.verifiedRepaired : t.verifyWarn}</span>
-                </span>
+                  <span>
+                    {verdict === "warn"
+                      ? fmt(t.meaningReview, { n: meaning.left.length })
+                      : verdict === "repaired"
+                        ? fmt(t.meaningFixedN, { n: meaning.fixed.length })
+                        : t.meaningKept}
+                  </span>
+                </button>
               )}
             </div>
             <button className="btn btn-icon" onClick={undo} disabled={!past.length || busy} aria-label={t.undo} title={`${t.undo} (${MOD} Z)`}>
@@ -837,6 +915,33 @@ export default function App() {
               {editing === null ? <IconEdit size={16} /> : <IconCheck size={16} />}
             </button>
           </div>
+          {meaningOpen && meaning && verdict && !busy && (
+            <div id="meaning-report" className={`notice meaning-report ${verdict === "warn" ? "warn" : ""}`} role="region" aria-label={t.meaningTitle}>
+              <div className="grow">
+                {!meaning.fixed.length && !meaning.left.length && <p><strong>{meaning.full ? t.meaningNothing : t.meaningLocalOnly}</strong></p>}
+                {meaning.fixed.length > 0 && (
+                  <>
+                    <p><strong>{t.meaningFixedHead}</strong></p>
+                    <ul>{meaning.fixed.map((x, i) => <li key={i}><span className="chip">{issueLabel(t, x.kind, true)}</span> <bdi>{x.kind === "structure" ? t.issueStructure : x.detail}</bdi></li>)}</ul>
+                  </>
+                )}
+                {meaning.left.length > 0 && (
+                  <>
+                    <p><strong>{t.meaningLeftHead}</strong></p>
+                    <ul>{meaning.left.map((x, i) => <li key={i}><span className="chip">{issueLabel(t, x.kind, false)}</span> <bdi>{x.kind === "structure" ? t.issueStructure : x.detail}</bdi></li>)}</ul>
+                  </>
+                )}
+                {meaning.kept.length > 0 && (
+                  <p className="help">
+                    {fmt(t.meaningKeptItems, { n: meaning.kept.length })} <bdi>{meaning.kept.slice(0, 12).join(" · ")}</bdi>
+                    {meaning.kept.length > 12 ? " …" : ""}
+                  </p>
+                )}
+                {meaning.full && meaning.fixed.length + meaning.left.length === 0 && <p className="help">{t.meaningHow}</p>}
+              </div>
+              <button className="btn btn-icon" onClick={() => setMeaningOpen(false)} aria-label={t.close}><IconX size={16} /></button>
+            </div>
+          )}
           {busy && run && (
             <>
               <div className="progress" aria-hidden="true">

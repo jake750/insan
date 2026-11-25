@@ -22,6 +22,7 @@ import {
   type DocBrief,
   type Lang,
   type PipelineEvent,
+  chunkWords,
   type ProviderConfig,
   type RewriteOptions,
   type VerifyIssue,
@@ -103,7 +104,7 @@ export async function runPipeline({ input, options, provider, signal, onEvent }:
   emit({ stage: "rewriting", brief });
 
   // 2 — Chunk
-  const maxWords = provider.kind === "anthropic" ? 900 : 450;
+  const maxWords = chunkWords(provider);
   const chunks = chunkBlocks(splitBlocks(prot.text), maxWords).map((c) => c.join("\n\n"));
   const system = buildRewriteSystem(options, brief);
   const done: string[] = [];
@@ -171,6 +172,7 @@ export async function runPipeline({ input, options, provider, signal, onEvent }:
     }
 
     let repaired = false;
+    let repairs: VerifyIssue[] = [];
     if (issues.length) {
       emit({ stage: "repairing", chunk: i, totalChunks: chunks.length, text: show(rewritten), issues });
       const fixed = cleanRewrite(
@@ -186,10 +188,24 @@ export async function runPipeline({ input, options, provider, signal, onEvent }:
         repaired = true;
       }
       // whatever is still missing after repair is reported, not hidden
+      const found = issues;
+      const missBefore = localMissing();
+      const paraBefore = paraIssue().length > 0;
       issues = [
-        ...localMissing().map((m) => ({ kind: "protected" as const, detail: `"${m.slice(0, 80)}" may be missing` })),
-        ...paraIssue().map((i) => ({ ...i, detail: "Paragraph structure differs from the source" })),
+        ...localMissing().map((m) => ({ kind: "protected" as const, detail: m.slice(0, 120) })),
+        ...paraIssue().map(() => ({ kind: "structure" as const, detail: "" })),
       ];
+      if (repaired) {
+        // what the repair really fixed: restored items, plus the model-found drift (and paragraph fix) that is gone
+        const missAfter = new Set(localMissing());
+        const paraFixed = paraBefore && !paraIssue().length;
+        repairs = [
+          ...missBefore.filter((m) => !missAfter.has(m)).map((m) => ({ kind: "protected" as const, detail: m.slice(0, 120) })),
+          ...found
+            .filter((x) => x.kind !== "protected" && (!x.detail.startsWith("The source has") || paraFixed))
+            .map((x) => (x.detail.startsWith("The source has") ? { kind: "structure" as const, detail: "" } : x)),
+        ];
+      }
     }
 
     // 4 — Polish last, so nothing undoes it: name the tells that survived and fix only those
@@ -222,7 +238,9 @@ export async function runPipeline({ input, options, provider, signal, onEvent }:
     }
 
     done.push(rewritten);
-    results.push({ index: i, original: origPlain, rewritten: unprotect(rewritten, prot.map), issues, repaired });
+    const missingNow = new Set(localMissing());
+    const kept = keepItems.filter((k) => !missingNow.has(k));
+    results.push({ index: i, original: origPlain, rewritten: unprotect(rewritten, prot.map), issues, repaired, fixed: repairs, kept });
     emit({ stage: "rewriting", chunk: i + 1, totalChunks: chunks.length, text: show(""), issues });
   }
 

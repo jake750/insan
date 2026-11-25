@@ -40,3 +40,10 @@ test("only local endpoints skip the key", () => {
   assert.equal(isLocalEndpoint("https://localhost.evil.example/v1"), false);
   assert.equal(isLocalEndpoint("https://api.openai.com/v1"), false);
 });
+
+test("Gemini and Claude get bigger chunks than other endpoints", async () => {
+  const { chunkWords } = await import("../src/engine/types");
+  assert.equal(chunkWords({ kind: "anthropic", baseUrl: "" }), 900);
+  assert.equal(chunkWords({ kind: "openai", baseUrl: GEMINI.baseUrl + "/" }), 900);
+  assert.equal(chunkWords({ kind: "openai", baseUrl: "http://localhost:11434/v1" }), 450);
+});

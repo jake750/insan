@@ -9,7 +9,7 @@ import { Dialog } from "./Dialog";
 import { fmt, type Strings, type UILang } from "./i18n";
 import { resetHistoryHandle } from "./history";
 import { IconAlert, IconCheck } from "./Icons";
-import { panicWipe, useStore, type Theme } from "./store";
+import { keyFor, panicWipe, useStore, type Theme } from "./store";
 
 const ENDPOINTS = [
   { label: "Gemini (free key)", url: GEMINI.baseUrl, model: GEMINI.model, noThink: false },
@@ -128,7 +128,7 @@ export function SettingsDialog({ t, onClose, errText, onWiped }: { t: Strings; o
               autoComplete="off"
               spellCheck={false}
               placeholder={kind === "anthropic" ? t.apiKeyPh : "sk-…"}
-              value={s.keys[kind]}
+              value={keyFor(s.keys, s.provider)}
               onChange={(e) => {
                 s.setKey(kind, e.target.value);
                 setTest({ state: "idle" });

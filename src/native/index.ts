@@ -167,3 +167,33 @@ export async function androidInstallDownloaded(): Promise<"installing" | "permis
   if (!p) throw new Error("unsupported");
   return (await p.install()).needsPermission ? "permission" : "installing";
 }
+
+/* ---------- "Humanize with Insan" from another app's text-selection menu (Android) ---------- */
+
+interface ProcessTextPlugin {
+  get(): Promise<{ text: string | null; readOnly: boolean }>;
+  finish(o: { text?: string }): Promise<void>;
+}
+
+async function processTextPlugin() {
+  const { registerPlugin } = await import("@capacitor/core");
+  return registerPlugin<ProcessTextPlugin>("ProcessText");
+}
+
+/** The text selected in another app, when Insan was opened from its selection menu; otherwise null. */
+export async function getProcessText(): Promise<{ text: string; readOnly: boolean } | null> {
+  if (!isNative()) return null;
+  try {
+    const r = await (await processTextPlugin()).get();
+    return r.text?.trim() ? { text: r.text, readOnly: r.readOnly } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Return to the other app: with `text`, it replaces the selection there; without, nothing changes. */
+export async function finishProcessText(text?: string) {
+  try {
+    await (await processTextPlugin()).finish(text === undefined ? {} : { text });
+  } catch {}
+}
